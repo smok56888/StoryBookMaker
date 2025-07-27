@@ -1,10 +1,34 @@
 import axios from 'axios'
+import { generateStoryPrompt, generateImagePrompt as generateImagePromptTemplate, type StoryPromptParams, type ImagePromptParams } from './promptTemplates'
 
 // 豆包API配置
 const ARK_BASE_URL = process.env.ARK_BASE_URL || 'https://api.doubao.com'
 const ARK_API_KEY = process.env.ARK_API_KEY || '75879918-5f2c-4c02-8276-caf865b06b06'
 const ARK_TEXT_TO_IMAGE_MODEL = process.env.ARK_TEXT_TO_IMAGE_MODEL || 'doubao-seedream-3-0-t2i-250415'
 const ARK_IMAGE_ANALYSIS_MODEL = process.env.ARK_IMAGE_ANALYSIS_MODEL || 'doubao-seed-1-6-250615'
+
+// 提示词优化辅助函数（保留用于图片生成优化）
+
+const optimizeImagePrompt = (originalPrompt: string, imageType: 'cover' | 'content' | 'ending') => {
+  // 根据图片类型添加特定的优化指令
+  const typeSpecificPrompts = {
+    cover: '封面设计，需要包含故事标题，整体构图要吸引眼球，展现故事主题',
+    content: '故事内页插图，要准确表现当页情节，角色表情生动，场景细节丰富',
+    ending: '结尾页插图，要营造温馨圆满的氛围，给读者满足感和幸福感'
+  }
+  
+  const baseOptimization = `
+【构图要求】采用黄金分割比例，主体居中偏上，符合儿童视觉习惯
+【光影效果】柔和的自然光照，避免强烈阴影，营造温暖氛围
+【细节处理】丰富但不复杂的细节，每个元素都有存在意义
+【情感传达】通过色彩、表情、肢体语言准确传达情感
+【安全考虑】所有元素都要圆润安全，无尖锐或危险暗示`
+
+  return `${originalPrompt}
+
+${typeSpecificPrompts[imageType]}
+${baseOptimization}`
+}
 
 // 类型定义
 export interface AnalyzeResult {
@@ -171,33 +195,13 @@ export async function generateStory(params: {
   try {
     console.log('生成故事参数:', JSON.stringify(params, null, 2))
 
-    const charactersDesc = params.characters.map(char =>
-      `${char.name}（${char.age}岁，${char.gender === 'male' ? '男' : char.gender === 'female' ? '女' : '其他'}）${char.analysis ? '：' + char.analysis : ''}`
-    ).join('\n')
-
-    const prompt = `请为3-6岁儿童创作一个绘本故事，要求如下：
-
-角色信息：
-${charactersDesc}
-
-故事梗概：${params.outline}
-
-风格约束：${params.style || '温馨童真，富有教育意义'}
-
-要求：
-1. 生成${params.count}个段落的完整童话故事
-2. 每个段落30-70字
-3. 故事要有完整的起承转合
-4. 语言简单易懂，适合3-6岁儿童
-5. 内容积极向上，富有教育意义
-6. 保持童真可爱的风格
-7. 请先给出故事标题，然后分段落输出
-
-输出格式：
-标题：[故事标题]
-第1段：[内容]
-第2段：[内容]
-...`
+    // 使用新的提示词模板系统
+    const prompt = generateStoryPrompt({
+      characters: params.characters,
+      outline: params.outline,
+      style: params.style || '温馨童真',
+      count: params.count
+    })
 
     console.log('发送到豆包的提示词:', prompt)
 
@@ -330,51 +334,13 @@ export async function generateImagePrompt(params: {
   title: string
 }): Promise<PromptResult> {
   try {
-    const charactersDesc = params.characters.map(char =>
-      `${char.name}：${char.analysis}`
-    ).join('\n\n')
-
-    const storyContent = params.paragraphs.map((p, i) =>
-      `第${i + 1}页：${p}`
-    ).join('\n\n')
-
-    const prompt = `你是一位专业的童话绘本插图师，请为以下绘本故事生成插图情景描述。
-
-故事标题：${params.title}
-
-角色信息：
-${charactersDesc}
-
-故事内容：
-${storyContent}
-
-请为以下页面生成插图描述：
-1. 封面：展现故事主题和主要角色
-2. 正文页面：每一页对应一个段落的情景
-3. 结尾页：温馨的结尾场景
-
-要求：
-- 每页描述必须严格按照以下固定模板格式：
-  * 本页出现的角色1：角色1的形象，含表情、衣着、动作、情绪等
-  * 本页出现的角色2：角色2的形象，含表情、衣着、动作、情绪等
-  * （需要罗列所有出现的角色）
-  * 本页出现的环境描述
-- 保持角色外观一致性
-- 风格连贯，童真可爱
-- 适合3-6岁儿童观看
-- 色彩温暖明亮
-- 每个描述100-150字
-
-特别说明：
-- 封面图片需要将故事标题以可爱的字体体现在封面图上
-- 确保每个角色的描述都完整，避免角色特征糅合或遗漏
-
-输出格式：
-封面：[描述]
-第1页：[描述]
-第2页：[描述]
-...
-结尾页：[描述]`
+    // 使用新的提示词模板系统
+    const prompt = generateImagePromptTemplate({
+      storyId: params.storyId,
+      characters: params.characters,
+      paragraphs: params.paragraphs,
+      title: params.title
+    })
 
     const response = await arkClient.post('/chat/completions', {
       model: ARK_IMAGE_ANALYSIS_MODEL,
@@ -451,9 +417,33 @@ export async function generateImage(params: {
       params.prompt = '童话风格的绘本插图，色彩明亮，适合儿童'
     }
 
-    const enhancedPrompt = `${params.prompt}
+    // 根据图片类型确定优化策略
+    const imageType = params.prompt.includes('封面') ? 'cover' : 
+                     params.prompt.includes('结尾') ? 'ending' : 'content'
+    
+    const optimizedPrompt = optimizeImagePrompt(params.prompt, imageType)
+    
+    const enhancedPrompt = `${optimizedPrompt}
 
-风格要求：童话绘本插图风格，色彩温暖明亮，线条柔和，适合3-6岁儿童，卡通可爱风格，高质量插画`
+【专业绘画技法】
+- 艺术风格：儿童绘本插画，手绘水彩质感，温暖治愈系
+- 色彩理论：采用暖色调为主（黄、橙、粉），冷色调为辅（蓝、绿）
+- 笔触特点：柔和圆润的线条，无锐利边角，体现安全感
+- 质感表现：丰富的纹理层次，但不过于复杂，保持清晰度
+
+【构图美学】
+- 视觉中心：运用三分法则，主体位置符合儿童视觉习惯
+- 空间层次：前中后景分明，营造立体感和深度
+- 色彩平衡：主色调统一，局部亮色点缀，整体和谐
+- 情绪引导：通过构图和色彩引导正面情绪
+
+【儿童心理学考量】
+- 安全感：所有元素圆润可爱，无威胁性暗示
+- 认知友好：符合3-6岁儿童的认知发展水平
+- 情感共鸣：贴近儿童生活经验，易于理解和接受
+- 审美培养：精美的艺术品质，培养儿童审美能力
+
+【技术规格】高清分辨率，专业印刷品质，色彩饱和度适中，适合纸质出版`
 
     console.log('发送到豆包的图片生成提示词:', enhancedPrompt)
 
