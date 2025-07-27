@@ -258,63 +258,98 @@ export async function generateStory(params: {
 
     console.log('豆包返回的内容:', content)
 
-    // 解析标题和段落
-    const lines = content.split('\n').filter((line: string) => line.trim())
-    const titleMatch = lines.find((line: string) => line.includes('标题：'))
-    const title = titleMatch ? titleMatch.replace('标题：', '').trim() : '我的绘本故事'
+    // 解析标题和段落 - 改进版本
+    console.log('开始解析故事内容...')
+    
+    // 首先尝试提取标题
+    let title = '我的绘本故事'
+    const titleMatch = content.match(/(?:标题：|##\s*)(.+?)(?:\n|$)/i)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+      console.log('提取到标题:', title)
+    }
 
-    const paragraphs = lines
-      .filter((line: string) => /第\d+段：/.test(line))
-      .map((line: string) => line.replace(/第\d+段：/, '').trim())
-      .filter((p: string) => p.length > 0)
+    // 多种方式尝试解析段落
+    let paragraphs: string[] = []
 
+    // 方法1: 标准格式 "第X段："
+    const standardParagraphs = content.match(/第\d+段：([^第]+?)(?=第\d+段：|$)/g)
+    if (standardParagraphs && standardParagraphs.length > 0) {
+      paragraphs = standardParagraphs.map((p: string) => 
+        p.replace(/第\d+段：/, '').trim().replace(/\*\*/g, '')
+      ).filter((p: string) => p.length > 0)
+      console.log('使用标准格式解析，找到段落数:', paragraphs.length)
+    }
+
+    // 方法2: 如果标准格式失败，尝试识别 "**第X段**" 格式
     if (paragraphs.length === 0) {
-      console.log('未找到标准格式的段落，尝试按行分割')
-      // 如果没有找到标准格式，尝试按行分割
-      const allParagraphs = lines
-        .filter((line: string) => !line.includes('标题：') && line.length > 20)
-        .slice(0, params.count)
-
-      if (allParagraphs.length === 0) {
-        console.log('按行分割也未找到合适段落，尝试直接分割内容')
-        // 如果按行分割也没有找到合适的段落，直接将内容按句号分割
-        const sentences = content.split('。').filter((s: string) => s.trim().length > 0).map((s: string) => s + '。')
-        const groupedSentences = []
-
-        // 将句子分组，每2-3个句子一组
-        for (let i = 0; i < sentences.length; i += 2) {
-          if (i + 1 < sentences.length) {
-            groupedSentences.push(sentences[i] + sentences[i + 1])
-          } else {
-            groupedSentences.push(sentences[i])
-          }
-        }
-
-        return {
-          success: true,
-          data: {
-            title,
-            paragraphs: groupedSentences.slice(0, params.count)
-          }
-        }
-      }
-
-      return {
-        success: true,
-        data: {
-          title,
-          paragraphs: allParagraphs
-        }
+      const starParagraphs = content.match(/\*\*第\d+段\*\*([^*]+?)(?=\*\*第\d+段\*\*|$)/g)
+      if (starParagraphs && starParagraphs.length > 0) {
+        paragraphs = starParagraphs.map((p: string) => 
+          p.replace(/\*\*第\d+段\*\*/, '').trim().replace(/\*\*/g, '')
+        ).filter((p: string) => p.length > 0)
+        console.log('使用星号格式解析，找到段落数:', paragraphs.length)
       }
     }
 
-    console.log('解析出的段落:', paragraphs)
+    // 方法3: 智能分割混合内容
+    if (paragraphs.length === 0) {
+      console.log('标准格式解析失败，尝试智能分割')
+      
+      // 移除标题行和格式标记
+      let cleanContent = content
+        .replace(/(?:标题：|##\s*).+?(?:\n|$)/i, '')
+        .replace(/\*\*第\d+段\*\*/g, '|||SPLIT|||')
+        .replace(/第\d+段：/g, '|||SPLIT|||')
+      
+      // 按分割标记分割
+      const segments = cleanContent.split('|||SPLIT|||')
+        .map((s: string) => s.trim().replace(/\*\*/g, ''))
+        .filter((s: string) => s.length > 10) // 过滤太短的片段
+      
+      if (segments.length > 0) {
+        paragraphs = segments.slice(0, params.count)
+        console.log('智能分割找到段落数:', paragraphs.length)
+      }
+    }
+
+    // 方法4: 最后的兜底方案 - 按句号分组
+    if (paragraphs.length === 0) {
+      console.log('所有解析方法失败，使用兜底方案')
+      const sentences = content
+        .replace(/(?:标题：|##\s*).+?(?:\n|$)/i, '')
+        .split(/[。！？]/)
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 5)
+      
+      // 将句子分组，每组2-3个句子
+      const groupedSentences = []
+      for (let i = 0; i < sentences.length && groupedSentences.length < params.count; i += 2) {
+        const group = sentences.slice(i, i + 2).join('。') + '。'
+        if (group.length > 10) {
+          groupedSentences.push(group)
+        }
+      }
+      
+      paragraphs = groupedSentences
+      console.log('兜底方案找到段落数:', paragraphs.length)
+    }
+
+    // 确保段落数量符合要求
+    if (paragraphs.length > params.count) {
+      paragraphs = paragraphs.slice(0, params.count)
+    } else if (paragraphs.length < params.count) {
+      console.log(`段落数量不足，期望${params.count}个，实际${paragraphs.length}个`)
+    }
+
+    console.log('最终解析出的段落:', paragraphs)
+    console.log('段落详情:', paragraphs.map((p, i) => `第${i+1}段: ${p.substring(0, 50)}...`))
 
     return {
       success: true,
       data: {
         title,
-        paragraphs: paragraphs.slice(0, params.count)
+        paragraphs
       }
     }
   } catch (error: any) {
