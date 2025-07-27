@@ -175,8 +175,8 @@ export async function generatePDFWithHtml(storyId: string, storyData: StoryData)
       
       // PDF配置
       const options = {
-        format: 'A4',
-        orientation: 'portrait',
+        format: 'A4' as const,
+        orientation: 'portrait' as const,
         border: {
           top: '8mm',
           right: '8mm',

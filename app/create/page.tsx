@@ -684,7 +684,7 @@ export default function CreatePage() {
                           return;
                         }
                         try {
-                          await downloadPdf(storyId, storyData?.title);
+                          await downloadPdf(storyId, storyTitle || '绘本故事');
                         } catch (error) {
                           console.error('PDF下载失败:', error);
                         }

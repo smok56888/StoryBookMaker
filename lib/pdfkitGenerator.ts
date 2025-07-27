@@ -109,7 +109,7 @@ export async function generatePDFWithPDFKit(storyId: string, storyData: StoryDat
             doc.image(imgBuffer, {
               fit: [500, 300],
               align: 'center',
-              valign: 'top'
+              valign: 'center'
             });
             
             // 添加文本

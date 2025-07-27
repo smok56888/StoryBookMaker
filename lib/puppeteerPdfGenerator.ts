@@ -88,6 +88,7 @@ export class PDFGenerator {
 
     return baseArgs;
   }
+}
 
 export async function generatePDFWithPuppeteer(storyId: string, storyData: StoryData): Promise<Buffer> {
   try {
@@ -99,6 +100,47 @@ export async function generatePDFWithPuppeteer(storyId: string, storyData: Story
       fs.mkdirSync(storyDir, { recursive: true });
     }
     
+    // 创建HTML模板
+    const pdfTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><%= title %></title>
+  <style>
+    body { font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 20px; }
+    .page { page-break-after: always; min-height: 100vh; }
+    .cover { text-align: center; }
+    .cover h1 { font-size: 2em; margin: 50px 0; }
+    .content { margin: 20px 0; }
+    .content img { max-width: 100%; height: auto; }
+    .content p { font-size: 1.2em; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="page cover">
+    <h1><%= title %></h1>
+    <% if (images.cover) { %>
+      <img src="data:image/jpeg;base64,<%= images.cover %>" alt="封面">
+    <% } %>
+  </div>
+  <% paragraphs.forEach((paragraph, index) => { %>
+    <div class="page content">
+      <% if (images.content[index]) { %>
+        <img src="data:image/jpeg;base64,<%= images.content[index] %>" alt="插图">
+      <% } %>
+      <p><%= paragraph %></p>
+    </div>
+  <% }); %>
+  <% if (images.ending) { %>
+    <div class="page content">
+      <img src="data:image/jpeg;base64,<%= images.ending %>" alt="结尾">
+      <p style="text-align: center; font-size: 1.5em;">故事结束</p>
+    </div>
+  <% } %>
+</body>
+</html>`;
+
     // 渲染HTML模板
     const html = ejs.render(pdfTemplate, {
       title: storyData.title,
@@ -176,7 +218,7 @@ export async function generatePDFWithPuppeteer(storyId: string, storyData: Story
       });
       
       // 等待一段时间确保所有内容都已加载
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // 生成PDF
       console.log('正在生成PDF...');
@@ -197,7 +239,7 @@ export async function generatePDFWithPuppeteer(storyId: string, storyData: Story
       fs.writeFileSync(pdfPath, pdfBuffer);
       console.log(`PDF文件已保存到: ${pdfPath}`);
       
-      return pdfBuffer;
+      return Buffer.from(pdfBuffer);
     } finally {
       // 确保浏览器关闭
       await browser.close();

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const storyObj = JSON.parse(storyRaw)
     const characters = JSON.parse(charactersRaw)
     // 调用大模型一次性生成所有页面提示词
-    const promptRes = await generateImagePrompt({ storyId, story: JSON.stringify(storyObj), characters })
+    const promptRes = await generateImagePrompt({ storyId, characters, paragraphs: storyObj.paragraphs, title: storyObj.title })
     // 缓存
     await fs.writeFile(path.join(storyDir, 'prompts.json'), JSON.stringify(promptRes, null, 2))
     // 返回

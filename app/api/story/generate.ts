@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     await fs.writeFile(path.join(storyDir, 'characters.json'), JSON.stringify(analyzedCharacters, null, 2))
     await fs.writeFile(path.join(storyDir, 'story.json'), JSON.stringify(storyRes, null, 2))
     // 4. 返回
-    return new Response(JSON.stringify({ storyId, title: storyRes.title, paragraphs: storyRes.paragraphs }), {
+    return new Response(JSON.stringify({ storyId, title: storyRes.data?.title || '', paragraphs: storyRes.data?.paragraphs || [] }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })

@@ -146,10 +146,26 @@ export async function generatePDFWithReactPDF(storyId: string, storyData: StoryD
     }
     
     // 生成PDF
-    const pdfBuffer = await pdf(<StoryDocument storyData={storyData} />).toBuffer();
+    const pdfDoc = pdf(<StoryDocument storyData={storyData} />);
     
     // 保存PDF文件到本地
     const pdfPath = path.join(storyDir, 'story.pdf');
+    
+    // 使用流的方式保存文件
+    const stream = fs.createWriteStream(pdfPath);
+    const pdfStream = await pdfDoc.toBuffer();
+    
+    // 将ReadableStream转换为Buffer
+    const reader = (pdfStream as any).getReader();
+    const chunks: Uint8Array[] = [];
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    
+    const pdfBuffer = Buffer.concat(chunks);
     fs.writeFileSync(pdfPath, pdfBuffer);
     
     console.log(`PDF生成成功，保存到: ${pdfPath}`);

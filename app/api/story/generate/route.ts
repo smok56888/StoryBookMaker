@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       console.log('故事生成结果:', JSON.stringify(storyResult, null, 2));
     } catch (error) {
       console.error('故事生成API调用失败:', error);
-      storyResult = { success: false, error: error.message || '故事生成API调用失败' };
+      storyResult = { success: false, error: (error as Error).message || '故事生成API调用失败' };
     }
 
     if (!storyResult.success || !storyResult.data) {
@@ -102,15 +102,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 保存故事内容
-    saveStory(storyId, storyResult.data)
+    if (storyResult.data) {
+      saveStory(storyId, storyResult.data)
+    }
     
     // 保存草稿状态
     saveStoryStatus(storyId, 'draft')
 
     return NextResponse.json({
       storyId,
-      title: storyResult.data.title,
-      paragraphs: storyResult.data.paragraphs
+      title: storyResult.data?.title || '',
+      paragraphs: storyResult.data?.paragraphs || []
     })
 
   } catch (error: any) {

@@ -105,7 +105,7 @@ export async function analyzeImage(imageBase64: string): Promise<AnalyzeResult> 
 
     // 根据豆包图片解析API文档构建请求
     // 参考文档: https://www.volcengine.com/docs/82379/1362931
-    const response = await arkClient.post('/v3/chat/completions', {
+    const response = await arkClient.post('/chat/completions', {
       model: ARK_IMAGE_ANALYSIS_MODEL,
       messages: [
         {
@@ -170,8 +170,8 @@ export async function generateStory(params: {
 }): Promise<StoryResult> {
   try {
     console.log('生成故事参数:', JSON.stringify(params, null, 2))
-    
-    const charactersDesc = params.characters.map(char => 
+
+    const charactersDesc = params.characters.map(char =>
       `${char.name}（${char.age}岁，${char.gender === 'male' ? '男' : char.gender === 'female' ? '女' : '其他'}）${char.analysis ? '：' + char.analysis : ''}`
     ).join('\n')
 
@@ -221,20 +221,20 @@ ${charactersDesc}
     let response;
     let retries = 0;
     const maxRetries = 3;
-    
+
     while (retries < maxRetries) {
       try {
         console.log(`尝试生成故事 (尝试 ${retries + 1}/${maxRetries})`)
-        response = await arkClient.post('/v3/chat/completions', requestData)
+        response = await arkClient.post('/chat/completions', requestData)
         break; // 成功则跳出循环
       } catch (error: any) {
         retries++
         console.error(`故事生成尝试 ${retries}/${maxRetries} 失败:`, error.message)
-        
+
         if (retries >= maxRetries) {
           throw error; // 达到最大重试次数，抛出错误
         }
-        
+
         // 等待一段时间后重试
         console.log(`等待 ${retries * 2} 秒后重试...`)
         await new Promise(resolve => setTimeout(resolve, retries * 2000));
@@ -255,28 +255,28 @@ ${charactersDesc}
     console.log('豆包返回的内容:', content)
 
     // 解析标题和段落
-    const lines = content.split('\n').filter(line => line.trim())
-    const titleMatch = lines.find(line => line.includes('标题：'))
+    const lines = content.split('\n').filter((line: string) => line.trim())
+    const titleMatch = lines.find((line: string) => line.includes('标题：'))
     const title = titleMatch ? titleMatch.replace('标题：', '').trim() : '我的绘本故事'
-    
+
     const paragraphs = lines
-      .filter(line => /第\d+段：/.test(line))
-      .map(line => line.replace(/第\d+段：/, '').trim())
-      .filter(p => p.length > 0)
+      .filter((line: string) => /第\d+段：/.test(line))
+      .map((line: string) => line.replace(/第\d+段：/, '').trim())
+      .filter((p: string) => p.length > 0)
 
     if (paragraphs.length === 0) {
       console.log('未找到标准格式的段落，尝试按行分割')
       // 如果没有找到标准格式，尝试按行分割
       const allParagraphs = lines
-        .filter(line => !line.includes('标题：') && line.length > 20)
+        .filter((line: string) => !line.includes('标题：') && line.length > 20)
         .slice(0, params.count)
-      
+
       if (allParagraphs.length === 0) {
         console.log('按行分割也未找到合适段落，尝试直接分割内容')
         // 如果按行分割也没有找到合适的段落，直接将内容按句号分割
-        const sentences = content.split('。').filter(s => s.trim().length > 0).map(s => s + '。')
+        const sentences = content.split('。').filter((s: string) => s.trim().length > 0).map((s: string) => s + '。')
         const groupedSentences = []
-        
+
         // 将句子分组，每2-3个句子一组
         for (let i = 0; i < sentences.length; i += 2) {
           if (i + 1 < sentences.length) {
@@ -285,7 +285,7 @@ ${charactersDesc}
             groupedSentences.push(sentences[i])
           }
         }
-        
+
         return {
           success: true,
           data: {
@@ -294,7 +294,7 @@ ${charactersDesc}
           }
         }
       }
-      
+
       return {
         success: true,
         data: {
@@ -330,11 +330,11 @@ export async function generateImagePrompt(params: {
   title: string
 }): Promise<PromptResult> {
   try {
-    const charactersDesc = params.characters.map(char => 
+    const charactersDesc = params.characters.map(char =>
       `${char.name}：${char.analysis}`
     ).join('\n\n')
 
-    const storyContent = params.paragraphs.map((p, i) => 
+    const storyContent = params.paragraphs.map((p, i) =>
       `第${i + 1}页：${p}`
     ).join('\n\n')
 
@@ -376,7 +376,7 @@ ${storyContent}
 ...
 结尾页：[描述]`
 
-    const response = await arkClient.post('/v3/chat/completions', {
+    const response = await arkClient.post('/chat/completions', {
       model: ARK_IMAGE_ANALYSIS_MODEL,
       messages: [
         {
@@ -394,17 +394,17 @@ ${storyContent}
     }
 
     // 解析提示词
-    const lines = content.split('\n').filter(line => line.trim())
-    const coverMatch = lines.find(line => line.includes('封面：'))
+    const lines = content.split('\n').filter((line: string) => line.trim())
+    const coverMatch = lines.find((line: string) => line.includes('封面：'))
     const cover = coverMatch ? coverMatch.replace('封面：', '').trim() : '温馨的故事封面场景'
-    
-    const endingMatch = lines.find(line => line.includes('结尾页：'))
+
+    const endingMatch = lines.find((line: string) => line.includes('结尾页：'))
     const ending = endingMatch ? endingMatch.replace('结尾页：', '').trim() : '温馨的故事结尾场景'
-    
+
     const pages = lines
-      .filter(line => /第\d+页：/.test(line))
-      .map(line => line.replace(/第\d+页：/, '').trim())
-      .filter(p => p.length > 0)
+      .filter((line: string) => /第\d+页：/.test(line))
+      .map((line: string) => line.replace(/第\d+页：/, '').trim())
+      .filter((p: string) => p.length > 0)
 
     return {
       success: true,
@@ -437,7 +437,7 @@ export async function generateImage(params: {
       title: params.title,
       promptLength: params.prompt.length
     }, null, 2))
-    
+
     // 根据类型设置不同的尺寸
     let width = 1024, height = 1024
     if (params.type === 'cover' || params.type === 'ending') {
@@ -474,44 +474,44 @@ export async function generateImage(params: {
     let retries = 0;
     const maxRetries = 3;
     let responseData = null;
-    
+
     while (retries < maxRetries) {
       try {
         console.log(`尝试生成图片 (尝试 ${retries + 1}/${maxRetries})`)
-        
+
         // 实际API调用 - 使用正确的豆包API端点
-        console.log(`发送请求到: ${ARK_BASE_URL}/v3/images/generations`);
+        console.log(`发送请求到: ${ARK_BASE_URL}/images/generations`);
         console.log('请求头:', {
           'Authorization': `Bearer ${ARK_API_KEY}`,
           'Content-Type': 'application/json'
         });
-        
-        // 根据豆包文生图API文档，正确的端点是 /v3/images/generations
-        const response = await arkClient.post('/v3/images/generations', requestData);
-        
+
+        // 根据豆包文生图API文档，正确的端点是 /images/generations
+        const response = await arkClient.post('/images/generations', requestData);
+
         console.log('收到响应状态:', response.status);
         console.log('响应头:', JSON.stringify(response.headers, null, 2));
-        
+
         responseData = response.data;
         console.log('请求成功，收到响应');
         break;
       } catch (error: any) {
         retries++;
         console.error(`图片生成尝试 ${retries}/${maxRetries} 失败:`, error.message);
-        
+
         // 详细记录错误信息
         if (error.response) {
           console.error('响应状态:', error.response.status);
           console.error('响应数据:', JSON.stringify(error.response.data, null, 2));
         }
-        
+
         if (retries >= maxRetries) {
           // 构造详细的错误信息
           let errorMessage = '图片生成失败';
           if (error.response) {
             const status = error.response.status;
             const data = error.response.data;
-            
+
             if (status === 401) {
               errorMessage = 'API认证失败，请检查API密钥';
             } else if (status === 403) {
@@ -532,12 +532,12 @@ export async function generateImage(params: {
           } else if (error.code === 'ETIMEDOUT') {
             errorMessage = 'API请求超时，请稍后重试';
           }
-          
+
           const detailedError = new Error(errorMessage);
-          detailedError.originalError = error;
+          (detailedError as any).originalError = error;
           throw detailedError;
         }
-        
+
         // 等待一段时间后重试
         console.log(`等待 ${retries * 2} 秒后重试...`);
         await new Promise(resolve => setTimeout(resolve, retries * 2000));
@@ -571,13 +571,13 @@ export async function generateImage(params: {
     };
   } catch (error: any) {
     console.error('图片生成失败:', error);
-    
+
     // 提供详细的错误信息
     let errorMessage = '图片生成失败';
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
-      
+
       if (status === 401) {
         errorMessage = 'API认证失败，请检查API密钥是否正确';
       } else if (status === 403) {
@@ -600,7 +600,7 @@ export async function generateImage(params: {
     } else if (error.message) {
       errorMessage = error.message;
     }
-    
+
     return {
       success: false,
       error: errorMessage

@@ -15,9 +15,11 @@ export async function POST(req: NextRequest) {
     if (type === 'cover') fileName = 'cover.png'
     else if (type === 'ending') fileName = 'ending.png'
     else fileName = `page_${index}.png`
-    const base64 = imgRes.image?.replace(/^data:image\/\w+;base64,/, '')
-    await fs.writeFile(path.join(storyDir, fileName), base64, 'base64')
-    return new Response(JSON.stringify({ image: imgRes.image }), {
+    const base64 = imgRes.data?.image?.replace(/^data:image\/\w+;base64,/, '')
+    if (base64) {
+      await fs.writeFile(path.join(storyDir, fileName), base64, 'base64')
+    }
+    return new Response(JSON.stringify({ image: imgRes.data?.image || '' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })

@@ -184,7 +184,7 @@ export async function getStoryHistory(page = 1) {
   } catch (error) {
     console.error('获取历史绘本列表失败:', error)
     // 显示友好的错误提示
-    const errorMessage = error.response?.data?.error || '获取历史绘本列表失败，请重试'
+    const errorMessage = (error as any).response?.data?.error || '获取历史绘本列表失败，请重试'
     // 使用toast显示错误
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner')
@@ -202,7 +202,7 @@ export async function deleteStory(storyId: string) {
   } catch (error) {
     console.error('删除绘本失败:', error)
     // 显示友好的错误提示
-    const errorMessage = error.response?.data?.error || '删除绘本失败，请重试'
+    const errorMessage = (error as any).response?.data?.error || '删除绘本失败，请重试'
     // 使用toast显示错误
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner')
@@ -220,7 +220,7 @@ export async function getStoryDetails(storyId: string) {
   } catch (error) {
     console.error('获取故事详情失败:', error)
     // 显示友好的错误提示
-    const errorMessage = error.response?.data?.error || '获取故事详情失败，请重试'
+    const errorMessage = (error as any).response?.data?.error || '获取故事详情失败，请重试'
     // 使用toast显示错误
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner')

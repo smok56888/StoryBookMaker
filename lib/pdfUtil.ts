@@ -14,7 +14,9 @@ export async function createPdf(storyDir: string): Promise<Buffer> {
   const contentImgs: Buffer[] = []
   for (let i = 0; i < storyObj.paragraphs.length; i++) {
     const img = await fs.readFile(path.join(storyDir, `page_${i}.png`)).catch(() => null)
-    contentImgs.push(img)
+    if (img) {
+      contentImgs.push(img)
+    }
   }
   // 创建PDF
   const pdfDoc = await PDFDocument.create()
