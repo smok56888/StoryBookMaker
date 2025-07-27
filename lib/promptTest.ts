@@ -1,7 +1,7 @@
 // 提示词测试文件
 // 用于测试和验证优化后的提示词效果
 
-import { generateStoryPrompt, generateImagePrompt } from './promptTemplates'
+import { generateStoryPrompt, generateImagePrompt } from './promptTemplates.js'
 
 // 测试故事生成提示词
 const testStoryPrompt = () => {

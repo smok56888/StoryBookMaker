@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { generateStoryPrompt, generateImagePrompt as generateImagePromptTemplate, type StoryPromptParams, type ImagePromptParams } from './promptTemplates'
+import { generateStoryPrompt, generateImagePrompt as generateImagePromptTemplate } from './promptTemplates'
 
 // 豆包API配置
 const ARK_BASE_URL = process.env.ARK_BASE_URL || 'https://api.doubao.com'
