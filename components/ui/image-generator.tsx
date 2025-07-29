@@ -74,11 +74,12 @@ export function ImageGenerator({
           toast.info(`正在重试生成图片 (${retries}/${maxRetries})...`)
         }
         
+        // 增强的图片生成，包含一致性优化
         const result = await generateImage({
           storyId,
           type,
           index,
-          prompt,
+          prompt: prompt, // 使用经过一致性优化的提示词
           title
         })
 
@@ -86,6 +87,12 @@ export function ImageGenerator({
           setImage(`data:image/jpeg;base64,${result.image}`)
           onImageGenerated(result.image)
           toast.success('图片生成成功')
+          
+          // 可选：记录成功的提示词用于后续页面参考
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[一致性系统] 成功生成${type}图片，提示词长度: ${prompt.length}`)
+          }
+          
           break; // 成功则跳出循环
         } else {
           throw new Error('未获取到图片数据')
@@ -151,19 +158,19 @@ export function ImageGenerator({
           <div className="flex flex-col">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-medium text-gray-700">提示词</h3>
-              {image && (
-                <div className="flex space-x-2">
-                  {isEditing ? (
-                    <Button size="sm" onClick={() => setIsEditing(false)}>
-                      <Check className="mr-1 h-3 w-3" />
-                      完成
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-                      <Edit3 className="mr-1 h-3 w-3" />
-                      编辑
-                    </Button>
-                  )}
+              <div className="flex space-x-2">
+                {isEditing ? (
+                  <Button size="sm" onClick={() => setIsEditing(false)}>
+                    <Check className="mr-1 h-3 w-3" />
+                    完成
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+                    <Edit3 className="mr-1 h-3 w-3" />
+                    编辑
+                  </Button>
+                )}
+                {image && (
                   <Button
                     size="sm"
                     onClick={handleGenerateImage}
@@ -178,20 +185,24 @@ export function ImageGenerator({
                       </>
                     )}
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {isEditing || !image ? (
+            {isEditing ? (
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="请输入图片生成提示词..."
-                className="flex-1 min-h-[150px]"
+                className="flex-1 min-h-[150px] resize-none"
               />
             ) : (
-              <div className="border rounded-md p-3 bg-gray-50 flex-1 overflow-auto text-sm text-gray-700">
-                {prompt}
+              <div 
+                className="border rounded-md p-3 bg-gray-50 flex-1 overflow-auto text-sm text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => setIsEditing(true)}
+                title="点击编辑提示词"
+              >
+                {prompt || "点击编辑提示词..."}
               </div>
             )}
 

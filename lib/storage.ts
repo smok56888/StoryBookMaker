@@ -110,7 +110,7 @@ export function getStory(storyId: string): any {
 }
 
 // 保存提示词
-export function savePrompts(storyId: string, prompts: { cover: string; pages: string[]; ending: string }) {
+export function savePrompts(storyId: string, prompts: { cover: string; pages: string[]; ending: string; coreElements?: string }) {
   const storyDir = getStoryDir(storyId)
   ensureDir(storyDir)
   
@@ -119,7 +119,7 @@ export function savePrompts(storyId: string, prompts: { cover: string; pages: st
 }
 
 // 读取提示词
-export function loadPrompts(storyId: string): { cover: string; pages: string[]; ending: string } | null {
+export function loadPrompts(storyId: string): { cover: string; pages: string[]; ending: string; coreElements?: string } | null {
   const filePath = path.join(getStoryDir(storyId), 'prompts.json')
   if (!fs.existsSync(filePath)) return null
   

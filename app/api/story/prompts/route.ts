@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateImagePrompt } from '@/lib/arkApi'
+import { generateImagePrompt, generateImagePromptFast } from '@/lib/arkApi'
 import { loadCharacterAnalysis, loadStory, savePrompts } from '@/lib/storage'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { storyId } = body
+    const { storyId, mode = 'optimized' } = body // 添加mode参数，默认使用优化模式
 
     if (!storyId) {
       return NextResponse.json(
@@ -25,13 +25,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 生成插图提示词
-    const promptResult = await generateImagePrompt({
-      storyId,
-      characters,
-      paragraphs: story.paragraphs,
-      title: story.title
-    })
+    // 根据模式选择生成方式
+    let promptResult
+    if (mode === 'fast') {
+      // 快速模式：单次调用，响应更快，但一致性较弱
+      promptResult = await generateImagePromptFast({
+        storyId,
+        characters,
+        paragraphs: story.paragraphs,
+        title: story.title
+      })
+    } else {
+      // 默认模式：一致性增强，确保人物形象统一
+      promptResult = await generateImagePrompt({
+        storyId,
+        characters,
+        paragraphs: story.paragraphs,
+        title: story.title
+      })
+    }
 
     if (!promptResult.success || !promptResult.data) {
       return NextResponse.json(
@@ -46,7 +58,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       cover: promptResult.data.cover,
       pages: promptResult.data.pages,
-      ending: promptResult.data.ending
+      ending: promptResult.data.ending,
+      mode: mode, // 返回使用的模式
+      coreElements: promptResult.data.coreElements // 如果有的话
     })
 
   } catch (error: any) {
