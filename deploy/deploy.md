@@ -34,9 +34,9 @@ sudo npm install -g pnpm
 
 #### 2.1 克隆项目
 ```bash
-cd /var/www
-sudo git clone https://github.com/smok56888/StoryBookMaker.git
-sudo chown -R $USER:$USER StoryBookMaker
+mkdir -p /home/ecs-user/code
+cd /home/ecs-user/code
+git clone https://github.com/smok56888/StoryBookMaker.git
 cd StoryBookMaker
 ```
 
@@ -89,7 +89,7 @@ server {
 
     # 静态文件缓存
     location /_next/static/ {
-        alias /var/www/StoryBookMaker/.next/static/;
+        alias /home/ecs-user/code/StoryBookMaker/.next/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
@@ -169,7 +169,7 @@ pm2 restart storybook-maker
 
 ### 更新代码
 ```bash
-cd /var/www/StoryBookMaker
+cd /home/ecs-user/code/StoryBookMaker
 git pull origin main
 pnpm install
 pnpm build

@@ -17,7 +17,8 @@
 #### 1.2 在ECS上使用Gitee仓库
 ```bash
 # 使用Gitee镜像克隆
-cd /var/www
+mkdir -p /home/ecs-user/code
+cd /home/ecs-user/code
 git clone https://gitee.com/你的用户名/StoryBookMaker.git
 cd StoryBookMaker
 
@@ -66,14 +67,14 @@ tar -czf storybook-maker.tar.gz --exclude='.git' --exclude='node_modules' .
 #### 4.2 上传到服务器
 ```bash
 # 使用scp上传
-scp storybook-maker.tar.gz root@your-server-ip:/var/www/
+scp storybook-maker.tar.gz root@your-server-ip:/home/ecs-user/code/
 
 # 在服务器上解压
 ssh root@your-server-ip
-cd /var/www
+mkdir -p /home/ecs-user/code
+cd /home/ecs-user/code
 tar -xzf storybook-maker.tar.gz
-mv StoryBookMaker storybook-maker  # 如果需要重命名
-cd storybook-maker
+cd StoryBookMaker
 ```
 
 ### 方案5: 使用阿里云Code (推荐企业用户)
@@ -108,9 +109,9 @@ apt-get install -y nodejs
 npm install -g pm2 pnpm
 
 # 从Gitee克隆项目
-cd /var/www
+mkdir -p /home/ecs-user/code
+cd /home/ecs-user/code
 git clone https://gitee.com/你的用户名/StoryBookMaker.git
-chown -R $USER:$USER StoryBookMaker
 cd StoryBookMaker
 
 # 配置环境变量
@@ -134,7 +135,7 @@ git push origin main      # 推送到GitHub
 git push gitee main       # 推送到Gitee
 
 # 服务器更新
-cd /var/www/StoryBookMaker
+cd /home/ecs-user/code/StoryBookMaker
 git pull origin main
 ./deploy/deploy.sh
 ```

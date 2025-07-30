@@ -34,9 +34,9 @@ npm --version
 #### 3. 克隆并部署项目
 ```bash
 # 克隆项目
-cd /var/www
+mkdir -p /home/ecs-user/code
+cd /home/ecs-user/code
 git clone https://github.com/smok56888/StoryBookMaker.git
-chown -R $USER:$USER StoryBookMaker
 cd StoryBookMaker
 
 # 配置环境变量
@@ -50,16 +50,16 @@ nano .env.local  # 编辑你的API密钥
 #### 4. 配置 Nginx
 ```bash
 # 复制 Nginx 配置
-cp /var/www/StoryBookMaker/deploy/nginx.conf /etc/nginx/sites-available/storybook-maker
+sudo cp /home/ecs-user/code/StoryBookMaker/deploy/nginx.conf /etc/nginx/sites-available/storybook-maker
 
 # 编辑配置文件，替换域名
-nano /etc/nginx/sites-available/storybook-maker
+sudo nano /etc/nginx/sites-available/storybook-maker
 # 将 "your-domain.com" 替换为你的域名或服务器IP
 
 # 启用站点
-ln -s /etc/nginx/sites-available/storybook-maker /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
+sudo ln -s /etc/nginx/sites-available/storybook-maker /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
 #### 5. 配置防火墙
@@ -100,7 +100,7 @@ pm2 logs storybook-maker
 pm2 restart storybook-maker
 
 # 更新代码
-cd /var/www/StoryBookMaker
+cd /home/ecs-user/code/StoryBookMaker
 git pull origin main
 ./deploy/deploy.sh
 ```

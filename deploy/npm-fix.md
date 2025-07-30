@@ -63,7 +63,7 @@ npm install
 
 ```bash
 # 进入项目目录
-cd /code/StoryBookMaker
+cd /home/ecs-user/code/StoryBookMaker
 
 # 清理环境
 rm -rf node_modules package-lock.json
@@ -139,7 +139,7 @@ node --max-old-space-size=4096 node_modules/.bin/next build
 
 ```bash
 # 1. 清理环境
-cd /code/StoryBookMaker
+cd /home/ecs-user/code/StoryBookMaker
 rm -rf node_modules package-lock.json
 
 # 2. 创建.npmrc配置

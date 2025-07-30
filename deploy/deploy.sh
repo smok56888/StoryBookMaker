@@ -8,7 +8,7 @@ set -e
 echo "🚀 开始部署 StoryBookMaker..."
 
 # 配置变量
-PROJECT_DIR="/var/www/StoryBookMaker"
+PROJECT_DIR="/home/ecs-user/code/StoryBookMaker"
 APP_NAME="storybook-maker"
 REPO_URL="https://github.com/smok56888/StoryBookMaker.git"
 # 如果GitHub无法访问，可以使用Gitee镜像
@@ -37,12 +37,11 @@ if [ ! -d "$PROJECT_DIR" ]; then
     echo "📦 首次部署，克隆项目..."
     
     # 创建项目目录
-    sudo mkdir -p /var/www
-    cd /var/www
+    mkdir -p /home/ecs-user/code
+    cd /home/ecs-user/code
     
     # 克隆项目
-    sudo git clone $REPO_URL
-    sudo chown -R $USER:$USER StoryBookMaker
+    git clone $REPO_URL
     
     print_status "项目克隆完成"
 else
