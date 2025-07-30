@@ -82,8 +82,15 @@ if [ ! -f ".npmrc" ]; then
     print_status "已创建.npmrc配置文件"
 fi
 
-# 设置Node.js内存限制
+# 设置Node.js内存限制和Puppeteer配置
 export NODE_OPTIONS="--max-old-space-size=4096"
+export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+export PUPPETEER_SKIP_DOWNLOAD=true
+
+# 添加Puppeteer配置到.npmrc
+if ! grep -q "puppeteer_skip_chromium_download" .npmrc 2>/dev/null; then
+    echo "puppeteer_skip_chromium_download=true" >> .npmrc
+fi
 
 if command -v pnpm &> /dev/null; then
     pnpm install
