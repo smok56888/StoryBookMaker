@@ -11,6 +11,8 @@ echo "🚀 开始部署 StoryBookMaker..."
 PROJECT_DIR="/var/www/StoryBookMaker"
 APP_NAME="storybook-maker"
 REPO_URL="https://github.com/smok56888/StoryBookMaker.git"
+# 如果GitHub无法访问，可以使用Gitee镜像
+# REPO_URL="https://gitee.com/你的用户名/StoryBookMaker.git"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -73,12 +75,41 @@ fi
 
 # 安装依赖
 echo "📦 安装依赖..."
-pnpm install
+
+# 创建.npmrc配置文件解决依赖冲突
+if [ ! -f ".npmrc" ]; then
+    echo "legacy-peer-deps=true" > .npmrc
+    echo "registry=https://registry.npmmirror.com" >> .npmrc
+    print_status "已创建.npmrc配置文件"
+fi
+
+# 设置Node.js内存限制
+export NODE_OPTIONS="--max-old-space-size=4096"
+
+if command -v pnpm &> /dev/null; then
+    pnpm install
+elif command -v yarn &> /dev/null; then
+    yarn install
+else
+    # 清理可能的冲突文件
+    rm -rf node_modules package-lock.json 2>/dev/null || true
+    npm install --legacy-peer-deps
+fi
 print_status "依赖安装完成"
 
 # 构建项目
 echo "🔨 构建项目..."
-pnpm build
+
+# 设置构建环境变量
+export NODE_OPTIONS="--max-old-space-size=4096"
+
+if command -v pnpm &> /dev/null; then
+    pnpm build
+elif command -v yarn &> /dev/null; then
+    yarn build
+else
+    npm run build --legacy-peer-deps
+fi
 print_status "项目构建完成"
 
 # 启动或重启应用
