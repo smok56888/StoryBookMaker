@@ -109,14 +109,39 @@ echo "🔨 构建项目..."
 # 设置构建环境变量
 export NODE_OPTIONS="--max-old-space-size=4096"
 
+# 清理构建缓存
+rm -rf .next 2>/dev/null || true
+
+# 尝试构建
+BUILD_SUCCESS=false
 if command -v pnpm &> /dev/null; then
-    pnpm build
+    if pnpm build; then
+        BUILD_SUCCESS=true
+    fi
 elif command -v yarn &> /dev/null; then
-    yarn build
+    if yarn build; then
+        BUILD_SUCCESS=true
+    fi
 else
-    npm run build --legacy-peer-deps
+    if npm run build --legacy-peer-deps; then
+        BUILD_SUCCESS=true
+    fi
 fi
-print_status "项目构建完成"
+
+# 如果构建失败，尝试修复
+if [ "$BUILD_SUCCESS" = false ]; then
+    print_warning "构建失败，尝试修复Next.js配置..."
+    
+    # 运行快速修复脚本
+    if [ -f "deploy/quick-build-fix.sh" ]; then
+        ./deploy/quick-build-fix.sh
+    else
+        print_error "构建失败，请手动运行修复脚本"
+        exit 1
+    fi
+else
+    print_status "项目构建完成"
+fi
 
 # 启动或重启应用
 if pm2 list | grep -q $APP_NAME; then
