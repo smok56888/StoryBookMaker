@@ -994,7 +994,7 @@ const parseFastResponse = (content: string, expectedPages: number) => {
     pages.push(page)
   }
 
-  return { cover, pages, ending, coreElements: null }
+  return { cover, pages, ending, coreElements: undefined }
 }
 
 // 生成单页图片提示词（带一致性验证）
