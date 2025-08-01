@@ -7,40 +7,29 @@
 git clone https://github.com/smok56888/StoryBookMaker.git
 cd StoryBookMaker
 
-# 配置环境变量
-cp .env.demo .env.local
+# 完整部署（包含所有依赖安装）
+sudo ./deploy/deploy.sh --full
+
+# 配置API密钥
 nano .env.local  # 填入你的豆包API密钥
 
-# 一键部署
-./deploy/simple-deploy-no-pm2.sh
+# 重启应用
+./deploy/restart.sh
 ```
 
-## 📋 手动部署
+## 📋 其他部署选项
 
-如果需要手动控制部署过程：
-
-1. **配置环境变量**
 ```bash
-cp .env.demo .env.local
-# 编辑 .env.local 文件，配置你的豆包API密钥
-# 详细配置说明请参考：deploy/env-setup-guide.md
-```
+# 快速部署（仅构建和启动，需要预先安装依赖）
+./deploy/deploy.sh --quick
 
-2. **安装依赖**
-```bash
-npm config set registry https://registry.npmmirror.com
-npm config set legacy-peer-deps true
-npm install --legacy-peer-deps
-```
+# 检查系统环境
+./deploy/deploy.sh --check
 
-3. **构建项目**
-```bash
-npm run build
-```
-
-4. **启动应用**
-```bash
-npm start
+# 修复特定问题
+./deploy/deploy.sh --fix-chrome   # 修复Chrome和PDF问题
+./deploy/deploy.sh --fix-fonts    # 修复中文字体问题
+./deploy/deploy.sh --fix-nginx    # 修复Nginx配置问题
 ```
 
 ## 🔧 应用管理
@@ -70,12 +59,8 @@ npm start
 
 ## 📁 配置文件说明
 
-- `simple-deploy-no-pm2.sh` - 一键部署脚本
+- `deploy.sh` - 统一部署脚本（包含所有修复功能）
 - `nginx.conf` - Nginx 反向代理配置
-- `nginx-setup-guide.md` - Nginx配置详细指南
-- `nginx-config-examples.conf` - 各种场景的配置示例
-- `nginx-quick-setup.sh` - Nginx快速配置脚本
-- `env-setup-guide.md` - 环境变量配置详细指南
 - `.env.demo` - 环境变量配置模板
 
 ## 🌐 生产环境配置
@@ -101,7 +86,7 @@ sudo systemctl restart nginx
 
 ```bash
 git pull origin main
-./deploy/simple-deploy-no-pm2.sh
+./deploy/deploy.sh --quick
 ```
 
 ## 🔍 故障排除
@@ -132,7 +117,7 @@ npm start
 4. **清理重新部署**
 ```bash
 rm -rf node_modules package-lock.json .next
-./deploy/simple-deploy-no-pm2.sh
+./deploy/deploy.sh --full
 ```
 
 ## 📋 环境要求
@@ -143,11 +128,13 @@ rm -rf node_modules package-lock.json .next
 
 ## 💡 部署特性
 
+- ✅ 自动安装所有系统依赖（Node.js、Chrome、中文字体）
 - ✅ 自动配置国内npm镜像源
 - ✅ 智能依赖冲突处理
 - ✅ 后台进程管理
 - ✅ 详细的错误处理和重试机制
 - ✅ 自动生成应用管理脚本
 - ✅ 完整的日志记录
+- ✅ 集成所有常见问题的修复方案
 
-一键部署脚本已经集成了所有常见问题的解决方案，大多数情况下一键即可完成部署！
+统一部署脚本已经集成了所有常见问题的解决方案，大多数情况下一键即可完成部署！
