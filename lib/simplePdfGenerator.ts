@@ -27,9 +27,45 @@ export async function generateSimplePDF(storyId: string, storyData: StoryData): 
     console.log('📄 [SimplePDF] 创建PDF文档...');
     const pdfDoc = await PDFDocument.create();
     
-    // 使用默认字体
+    // 尝试嵌入中文字体，如果失败则使用默认字体
     console.log('🔤 [SimplePDF] 嵌入字体...');
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    let font;
+    
+    try {
+      // 尝试加载系统中文字体
+      const chineseFontPaths = [
+        '/usr/share/fonts/chinese/NotoSansCJK.ttc',
+        '/usr/share/fonts/chinese/wqy-microhei.ttc',
+        '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        '/System/Library/Fonts/PingFang.ttc', // macOS
+        'C:\\Windows\\Fonts\\msyh.ttc' // Windows
+      ];
+      
+      let fontLoaded = false;
+      for (const fontPath of chineseFontPaths) {
+        if (fs.existsSync(fontPath)) {
+          try {
+            console.log(`🔤 [SimplePDF] 尝试加载中文字体: ${fontPath}`);
+            const fontBytes = fs.readFileSync(fontPath);
+            font = await pdfDoc.embedFont(fontBytes);
+            console.log(`✅ [SimplePDF] 中文字体加载成功: ${fontPath}`);
+            fontLoaded = true;
+            break;
+          } catch (error) {
+            console.log(`⚠️ [SimplePDF] 字体加载失败: ${fontPath}, 错误: ${error.message}`);
+            continue;
+          }
+        }
+      }
+      
+      if (!fontLoaded) {
+        throw new Error('未找到可用的中文字体');
+      }
+    } catch (error) {
+      console.log('⚠️ [SimplePDF] 中文字体加载失败，使用默认字体:', error.message);
+      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    }
     
     // A4页面尺寸
     const pageWidth = 595.28;

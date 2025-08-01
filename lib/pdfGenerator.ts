@@ -124,7 +124,11 @@ export class PDFGenerator {
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
         '--disable-field-trial-config',
-        '--disable-features=TranslateUI,BlinkGenPropertyTrees'
+        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+        // 字体相关优化
+        '--font-render-hinting=none',
+        '--disable-font-subpixel-positioning',
+        '--disable-lcd-text'
       )
     }
 
@@ -318,20 +322,37 @@ export class PDFGenerator {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${cleanTitle}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Comic+Neue:wght@400;700&display=swap');
-    
+    /* 优化中文字体显示 - 移除Google Fonts依赖，使用本地字体 */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
         
-
     body {
-      font-family: 'Comic Neue', 'Nunito', 'Comic Sans MS', '微软雅黑', 'Microsoft YaHei', 'SimHei', cursive, sans-serif;
+      /* 优化的中文字体栈 - 优先使用系统安装的中文字体 */
+      font-family: 
+        'Noto Sans CJK SC', 
+        'Source Han Sans SC', 
+        'WenQuanYi Zen Hei', 
+        'WenQuanYi Micro Hei', 
+        'Microsoft YaHei', 
+        '微软雅黑', 
+        'SimHei', 
+        '黑体',
+        'Comic Neue', 
+        'Nunito', 
+        'Comic Sans MS', 
+        'Arial Unicode MS',
+        'DejaVu Sans',
+        sans-serif;
       line-height: 1.6;
       color: #2c3e50;
       background: #fff;
+      /* 优化字体渲染 */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
     }
     
     .page {
