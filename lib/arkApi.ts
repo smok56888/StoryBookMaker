@@ -58,7 +58,7 @@ ${params.paragraphs.map((p, i) => `第${i + 1}页：${p}`).join('\n')}
 }
 
 // 解析一致性增强的响应
-const parseConsistentImagePromptResponse = (content: string, expectedPages: number, coreElements: string) => {
+const parseConsistentImagePromptResponse = (content: string, expectedPages: number, coreElements: string, title?: string) => {
   const lines = content.split('\n').filter(line => line.trim())
 
   // 提取核心角色特征用于增强描述
@@ -94,7 +94,7 @@ const parseConsistentImagePromptResponse = (content: string, expectedPages: numb
 
   // 如果解析失败，使用兜底方案
   if (!cover) {
-    cover = enhanceWithConsistency(`温馨的绘本封面，画面中清晰显示故事标题"${params.title}"，展现主要角色，体现故事主题`, characterFeatures)
+    cover = enhanceWithConsistency(`温馨的绘本封面，画面中清晰显示故事标题"${title || '绘本故事'}"，展现主要角色，体现故事主题`, characterFeatures)
   }
   if (!ending) {
     ending = enhanceWithConsistency('温馨圆满的故事结尾场景，传达幸福和满足感', characterFeatures)
@@ -860,7 +860,7 @@ export async function generateImagePrompt(params: {
     }
 
     // 解析响应并应用一致性增强
-    const result = parseConsistentImagePromptResponse(content, params.paragraphs.length, coreElements)
+    const result = parseConsistentImagePromptResponse(content, params.paragraphs.length, coreElements, params.title)
 
     const duration = Date.now() - startTime
 
