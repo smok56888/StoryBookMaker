@@ -44,14 +44,27 @@ npm start
 
 ## 🔧 应用管理
 
-部署成功后，会自动生成 `manage-app.sh` 管理脚本：
+项目提供了完整的应用管理脚本：
 
+### 快速管理脚本
 ```bash
-./manage-app.sh start    # 启动应用
-./manage-app.sh stop     # 停止应用
-./manage-app.sh restart  # 重启应用
-./manage-app.sh status   # 查看状态
-./manage-app.sh logs     # 查看日志
+./deploy/start.sh        # 启动应用
+./deploy/stop.sh         # 停止应用
+./deploy/restart.sh      # 重启应用
+./deploy/status.sh       # 查看状态
+```
+
+### 完整管理脚本
+```bash
+./deploy/manage-app.sh start      # 启动应用
+./deploy/manage-app.sh stop       # 停止应用
+./deploy/manage-app.sh restart    # 重启应用
+./deploy/manage-app.sh status     # 查看详细状态
+./deploy/manage-app.sh logs       # 查看日志
+./deploy/manage-app.sh logs -f    # 实时查看日志
+./deploy/manage-app.sh health     # 健康检查
+./deploy/manage-app.sh clean-logs # 清理日志
+./deploy/manage-app.sh help       # 显示帮助
 ```
 
 ## 📁 配置文件说明
