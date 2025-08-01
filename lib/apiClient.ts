@@ -74,8 +74,22 @@ export async function generateStory(data: {
 }
 
 // 提示词生成
-export async function generatePrompts(storyId: string) {
-  const response = await apiClient.post('/story/prompts', { storyId })
+export async function generatePrompts(storyId: string, mode: 'optimized' | 'fast' = 'optimized') {
+  const response = await apiClient.post('/story/prompts', { 
+    storyId, 
+    mode 
+  }, {
+    timeout: 120000 // 2分钟超时
+  })
+  return response.data
+}
+
+// 更新故事标题
+export async function updateStoryTitle(storyId: string, title: string) {
+  const response = await apiClient.post('/story/update-title', { 
+    storyId, 
+    title 
+  })
   return response.data
 }
 
@@ -123,25 +137,40 @@ export function getPdfUrl(storyId: string) {
   return `/api/story/pdf?storyId=${storyId}`
 }
 
-// 下载PDF文件（带状态提示）
+// 下载PDF文件（带详细状态提示）
 export async function downloadPdf(storyId: string, storyTitle?: string) {
+  let toastId: string | number | undefined;
+  
   try {
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner');
-      toast.info('正在生成PDF，请稍候...');
+      toastId = toast.loading('正在准备PDF生成...', {
+        duration: Infinity, // 持续显示直到手动关闭
+      });
     }
     
+    // 开始请求
     const response = await fetch(`/api/story/pdf?storyId=${storyId}`, {
       method: 'GET',
     });
     
     if (!response.ok) {
-      throw new Error('PDF生成失败');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'PDF生成失败');
+    }
+    
+    // 更新进度提示
+    if (typeof window !== 'undefined' && toastId) {
+      const { toast } = require('sonner');
+      toast.loading('PDF生成完成，正在下载...', {
+        id: toastId,
+        duration: Infinity,
+      });
     }
     
     // 获取文件名
     const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = 'story.pdf';
+    let filename = `${storyTitle || 'story'}.pdf`;
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
       if (filenameMatch) {
@@ -160,18 +189,38 @@ export async function downloadPdf(storyId: string, storyTitle?: string) {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
     
+    // 显示成功提示
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner');
-      toast.success('PDF下载成功！');
+      if (toastId) {
+        toast.success(`《${storyTitle || '绘本'}》PDF下载成功！`, {
+          id: toastId,
+          duration: 3000,
+        });
+      } else {
+        toast.success(`《${storyTitle || '绘本'}》PDF下载成功！`);
+      }
     }
     
     return true;
   } catch (error: any) {
     console.error('PDF下载失败:', error);
+    
+    // 显示错误提示
     if (typeof window !== 'undefined') {
       const { toast } = require('sonner');
-      toast.error('PDF下载失败，请重试');
+      const errorMessage = error.message || 'PDF下载失败，请重试';
+      
+      if (toastId) {
+        toast.error(errorMessage, {
+          id: toastId,
+          duration: 4000,
+        });
+      } else {
+        toast.error(errorMessage);
+      }
     }
+    
     throw error;
   }
 }

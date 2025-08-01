@@ -3,9 +3,8 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PreviewViewer } from "@/components/ui/preview-viewer";
-import { getStoryDetails, downloadPdf } from "@/lib/apiClient";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { getStoryDetails } from "@/lib/apiClient";
+import { DownloadButton } from "@/components/ui/download-button";
 import { toast } from "sonner";
 
 export default function PreviewPage() {
@@ -42,18 +41,13 @@ export default function PreviewPage() {
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">{storyData.title || "无标题"}</h1>
-        <Button
-          onClick={async () => {
-            try {
-              await downloadPdf(id, storyData?.title);
-            } catch (error) {
-              console.error('PDF下载失败:', error);
-            }
-          }}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          下载PDF
-        </Button>
+        <DownloadButton
+          storyId={id}
+          storyTitle={storyData?.title || "无标题"}
+          variant="default"
+          size="default"
+          showProgress={true}
+        />
       </div>
       
       <PreviewViewer 

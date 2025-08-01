@@ -39,10 +39,13 @@ ${params.paragraphs.map((p, i) => `第${i + 1}页：${p}`).join('\n')}
 3. 构图标准：采用儿童友好的视角和构图方式
 4. 质量标准：每个描述100-150字，详细具体，便于AI理解和生成
 
+【封面特殊要求】
+封面必须在画面中清晰显示故事标题"${params.title}"，标题文字要醒目易读，位置合适，不遮挡主要角色
+
 【输出格式】
 请严格按照以下格式输出：
 
-封面：[封面插图描述，包含主要角色，严格遵循一致性要求]
+封面：[封面插图描述，必须包含故事标题文字，展现主要角色，严格遵循一致性要求]
 第1页：[第1页插图描述，对应故事内容，严格遵循一致性要求]
 第2页：[第2页插图描述，对应故事内容，严格遵循一致性要求]
 第3页：[第3页插图描述，对应故事内容，严格遵循一致性要求]
@@ -57,24 +60,24 @@ ${params.paragraphs.map((p, i) => `第${i + 1}页：${p}`).join('\n')}
 // 解析一致性增强的响应
 const parseConsistentImagePromptResponse = (content: string, expectedPages: number, coreElements: string) => {
   const lines = content.split('\n').filter(line => line.trim())
-  
+
   // 提取核心角色特征用于增强描述
   const characterFeatures = extractCharacterFeatures(coreElements)
-  
+
   // 提取封面
   let cover = ''
   const coverLine = lines.find(line => line.startsWith('封面：'))
   if (coverLine) {
     cover = enhanceWithConsistency(coverLine.replace('封面：', '').trim(), characterFeatures)
   }
-  
+
   // 提取结尾
   let ending = ''
   const endingLine = lines.find(line => line.startsWith('结尾：'))
   if (endingLine) {
     ending = enhanceWithConsistency(endingLine.replace('结尾：', '').trim(), characterFeatures)
   }
-  
+
   // 提取各页
   const pages: string[] = []
   for (let i = 1; i <= expectedPages; i++) {
@@ -88,15 +91,15 @@ const parseConsistentImagePromptResponse = (content: string, expectedPages: numb
       pages.push(enhanceWithConsistency(basicDescription, characterFeatures))
     }
   }
-  
+
   // 如果解析失败，使用兜底方案
   if (!cover) {
-    cover = enhanceWithConsistency('温馨的绘本封面，展现主要角色，体现故事主题', characterFeatures)
+    cover = enhanceWithConsistency(`温馨的绘本封面，画面中清晰显示故事标题"${params.title}"，展现主要角色，体现故事主题`, characterFeatures)
   }
   if (!ending) {
     ending = enhanceWithConsistency('温馨圆满的故事结尾场景，传达幸福和满足感', characterFeatures)
   }
-  
+
   return {
     cover,
     pages,
@@ -109,7 +112,7 @@ const parseConsistentImagePromptResponse = (content: string, expectedPages: numb
 const extractCharacterFeatures = (coreElements: string): string[] => {
   const features: string[] = []
   const lines = coreElements.split('\n')
-  
+
   lines.forEach(line => {
     if (line.includes('：') && (line.includes('岁') || line.includes('穿') || line.includes('发'))) {
       const feature = line.trim()
@@ -118,7 +121,7 @@ const extractCharacterFeatures = (coreElements: string): string[] => {
       }
     }
   })
-  
+
   return features
 }
 
@@ -127,22 +130,22 @@ const enhanceWithConsistency = (description: string, characterFeatures: string[]
   if (characterFeatures.length === 0) {
     return description
   }
-  
+
   // 如果描述中没有包含角色特征，则添加
   const hasCharacterInfo = characterFeatures.some(feature => {
     const characterName = feature.split('：')[0]
     return description.includes(characterName)
   })
-  
+
   if (!hasCharacterInfo && characterFeatures.length > 0) {
     // 添加主要角色的关键特征
     const mainCharacterFeature = characterFeatures[0]
     const characterName = mainCharacterFeature.split('：')[0]
     const keyFeatures = mainCharacterFeature.split('：')[1].split('，').slice(0, 2).join('，')
-    
+
     return `${description}。${characterName}（${keyFeatures}）保持一致的外观特征。`
   }
-  
+
   return description
 }
 
@@ -155,7 +158,7 @@ const logApiCall = {
     console.log(`📋 [豆包API] ${apiName} - 调用参数:`, JSON.stringify(sanitizedParams, null, 2))
     console.log(`⏰ [豆包API] ${apiName} - 调用时间:`, new Date().toISOString())
   },
-  
+
   // 记录API调用成功
   success: (apiName: string, response: any, duration?: number) => {
     const sanitizedResponse = sanitizeLogData(response)
@@ -166,7 +169,7 @@ const logApiCall = {
     }
     console.log(`🏁 [豆包API] ${apiName} - 完成时间:`, new Date().toISOString())
   },
-  
+
   // 记录API调用失败
   error: (apiName: string, error: any, duration?: number) => {
     const sanitizedError = sanitizeLogData(error)
@@ -177,7 +180,7 @@ const logApiCall = {
     }
     console.log(`🏁 [豆包API] ${apiName} - 失败时间:`, new Date().toISOString())
   },
-  
+
   // 记录重试信息
   retry: (apiName: string, attempt: number, maxRetries: number, error?: any) => {
     console.log(`🔄 [豆包API] ${apiName} - 重试 ${attempt}/${maxRetries}`)
@@ -190,7 +193,7 @@ const logApiCall = {
 // 数据清理函数，用于日志输出时简化长内容
 const sanitizeLogData = (data: any): any => {
   if (!data) return data
-  
+
   const sanitize = (obj: any): any => {
     if (typeof obj === 'string') {
       // 处理base64图片数据
@@ -203,11 +206,11 @@ const sanitizeLogData = (data: any): any => {
       }
       return obj
     }
-    
+
     if (Array.isArray(obj)) {
       return obj.map(sanitize)
     }
-    
+
     if (obj && typeof obj === 'object') {
       const sanitized: any = {}
       for (const [key, value] of Object.entries(obj)) {
@@ -228,10 +231,10 @@ const sanitizeLogData = (data: any): any => {
       }
       return sanitized
     }
-    
+
     return obj
   }
-  
+
   return sanitize(data)
 }
 
@@ -243,14 +246,14 @@ const ARK_IMAGE_ANALYSIS_MODEL = process.env.ARK_IMAGE_ANALYSIS_MODEL || 'doubao
 
 // 提示词优化辅助函数（保留用于图片生成优化）
 
-const optimizeImagePrompt = (originalPrompt: string, imageType: 'cover' | 'content' | 'ending') => {
+const optimizeImagePrompt = (originalPrompt: string, imageType: 'cover' | 'content' | 'ending', title?: string) => {
   // 根据图片类型添加特定的优化指令
   const typeSpecificPrompts = {
-    cover: '封面设计，需要包含故事标题，整体构图要吸引眼球，展现故事主题',
+    cover: `封面设计，必须在画面中清晰显示故事标题文字${title ? `"${title}"` : ''}，标题文字要醒目易读，可以使用装饰性字体，整体构图要吸引眼球，展现故事主题`,
     content: '故事内页插图，要准确表现当页情节，角色表情生动，场景细节丰富',
     ending: '结尾页插图，要营造温馨圆满的氛围，给读者满足感和幸福感'
   }
-  
+
   const baseOptimization = `
 【构图要求】采用黄金分割比例，主体居中偏上，符合儿童视觉习惯
 【光影效果】柔和的自然光照，避免强烈阴影，营造温暖氛围
@@ -329,7 +332,7 @@ const arkClient = axios.create({
     'Authorization': `Bearer ${ARK_API_KEY}`,
     'Content-Type': 'application/json'
   },
-  timeout: 180000 // 增加到180秒超时
+  timeout: 90000 // 优化为90秒超时，平衡速度和成功率
 })
 
 // 添加请求拦截器，用于详细日志记录
@@ -369,7 +372,7 @@ arkClient.interceptors.response.use(
 export async function analyzeImage(imageBase64: string): Promise<AnalyzeResult> {
   const apiName = '图片分析'
   const startTime = Date.now()
-  
+
   try {
     const prompt = `请详细分析这张人物图片，提取以下信息：
 1. 头部特征：五官、表情、神态
@@ -400,8 +403,8 @@ export async function analyzeImage(imageBase64: string): Promise<AnalyzeResult> 
           ]
         }
       ],
-      max_tokens: 1000,
-      temperature: 0.3
+      max_tokens: 5000,
+      temperature: 0.6
     }
 
     // 记录API调用开始
@@ -454,7 +457,7 @@ export async function analyzeImage(imageBase64: string): Promise<AnalyzeResult> 
     return result
   } catch (error: any) {
     const duration = Date.now() - startTime
-    
+
     // 记录API调用失败
     logApiCall.error(apiName, {
       message: error.message,
@@ -479,7 +482,7 @@ export async function generateStory(params: {
 }): Promise<StoryResult> {
   const apiName = '故事生成'
   const startTime = Date.now()
-  
+
   try {
     // 使用新的提示词模板系统
     const prompt = generateStoryPrompt({
@@ -499,7 +502,7 @@ export async function generateStory(params: {
           content: prompt
         }
       ],
-      max_tokens: 2000,
+      max_tokens: 5000,
       temperature: 0.7
     }
 
@@ -563,7 +566,7 @@ export async function generateStory(params: {
     // 方法1: 标准格式 "第X段："
     const standardParagraphs = content.match(/第\d+段：([^第]+?)(?=第\d+段：|$)/g)
     if (standardParagraphs && standardParagraphs.length > 0) {
-      paragraphs = standardParagraphs.map((p: string) => 
+      paragraphs = standardParagraphs.map((p: string) =>
         p.replace(/第\d+段：/, '').trim().replace(/\*\*/g, '')
       ).filter((p: string) => p.length > 0)
     }
@@ -572,7 +575,7 @@ export async function generateStory(params: {
     if (paragraphs.length === 0) {
       const starParagraphs = content.match(/\*\*第\d+段\*\*([^*]+?)(?=\*\*第\d+段\*\*|$)/g)
       if (starParagraphs && starParagraphs.length > 0) {
-        paragraphs = starParagraphs.map((p: string) => 
+        paragraphs = starParagraphs.map((p: string) =>
           p.replace(/\*\*第\d+段\*\*/, '').trim().replace(/\*\*/g, '')
         ).filter((p: string) => p.length > 0)
       }
@@ -585,12 +588,12 @@ export async function generateStory(params: {
         .replace(/(?:标题：|##\s*).+?(?:\n|$)/i, '')
         .replace(/\*\*第\d+段\*\*/g, '|||SPLIT|||')
         .replace(/第\d+段：/g, '|||SPLIT|||')
-      
+
       // 按分割标记分割
       const segments = cleanContent.split('|||SPLIT|||')
         .map((s: string) => s.trim().replace(/\*\*/g, ''))
         .filter((s: string) => s.length > 10) // 过滤太短的片段
-      
+
       if (segments.length > 0) {
         paragraphs = segments.slice(0, params.count)
       }
@@ -603,7 +606,7 @@ export async function generateStory(params: {
         .split(/[。！？]/)
         .map((s: string) => s.trim())
         .filter((s: string) => s.length > 5)
-      
+
       // 将句子分组，每组2-3个句子
       const groupedSentences = []
       for (let i = 0; i < sentences.length && groupedSentences.length < params.count; i += 2) {
@@ -612,7 +615,7 @@ export async function generateStory(params: {
           groupedSentences.push(group)
         }
       }
-      
+
       paragraphs = groupedSentences
     }
 
@@ -644,7 +647,7 @@ export async function generateStory(params: {
     return result
   } catch (error: any) {
     const duration = Date.now() - startTime
-    
+
     // 记录API调用失败
     logApiCall.error(apiName, {
       message: error.message,
@@ -669,7 +672,7 @@ export async function extractCoreElements(params: {
 }): Promise<CoreElementsResult> {
   const apiName = '核心形象元素提取'
   const startTime = Date.now()
-  
+
   try {
     const prompt = generateCoreElementsPrompt({
       storyId: params.storyId,
@@ -686,8 +689,8 @@ export async function extractCoreElements(params: {
           content: prompt
         }
       ],
-      max_tokens: 2000, // 增加token数量以获得更详细的描述
-      temperature: 0.2 // 降低温度以确保一致性
+      max_tokens: 5000, // 增加token数量以获得更详细的描述
+      temperature: 0.7 // 降低温度以确保一致性
     }
 
     // 记录API调用开始
@@ -722,7 +725,7 @@ export async function extractCoreElements(params: {
 
     if (!hasRequiredSections) {
       logApiCall.retry(apiName, 1, 1, new Error('格式不完整，需要重新生成'))
-      
+
       // 如果格式不完整，尝试用更明确的提示词重新生成
       const retryPrompt = prompt + `
 
@@ -744,8 +747,8 @@ export async function extractCoreElements(params: {
             content: retryPrompt
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.1 // 进一步降低温度
+        max_tokens: 5000,
+        temperature: 0.5 // 进一步降低温度
       })
 
       const retryContent = retryResponse.data.choices[0]?.message?.content
@@ -783,7 +786,7 @@ export async function extractCoreElements(params: {
     return result
   } catch (error: any) {
     const duration = Date.now() - startTime
-    
+
     // 记录API调用失败
     logApiCall.error(apiName, {
       message: error.message,
@@ -808,19 +811,10 @@ export async function generateImagePrompt(params: {
 }): Promise<PromptResult> {
   const apiName = '插图提示词生成'
   const startTime = Date.now()
-  
+
   try {
-    // 第一步：提取核心形象元素，确保一致性
-    const coreElementsResult = await extractCoreElements(params)
-    
-    let coreElements = ''
-    if (coreElementsResult.success && coreElementsResult.data) {
-      coreElements = coreElementsResult.data.coreElements
-    } else {
-      console.warn('核心形象元素提取失败，使用基础模式:', coreElementsResult.error)
-      // 生成基础的一致性描述
-      coreElements = generateBasicConsistencyElements(params.characters)
-    }
+    // 优化：直接生成基础一致性描述，减少API调用次数
+    const coreElements = generateBasicConsistencyElements(params.characters)
 
     // 第二步：基于核心形象元素生成插图提示词
     const prompt = generateConsistentImagePrompt({
@@ -839,8 +833,8 @@ export async function generateImagePrompt(params: {
           content: prompt
         }
       ],
-      max_tokens: 2000, // 适中的token数量，平衡速度和质量
-      temperature: 0.3 // 较低温度确保一致性
+      max_tokens: 5000, // 适中的token数量，平衡速度和质量
+      temperature: 0.7 // 较低温度确保一致性
     }
 
     // 记录API调用开始
@@ -867,7 +861,7 @@ export async function generateImagePrompt(params: {
 
     // 解析响应并应用一致性增强
     const result = parseConsistentImagePromptResponse(content, params.paragraphs.length, coreElements)
-    
+
     const duration = Date.now() - startTime
 
     // 记录API调用成功
@@ -893,7 +887,7 @@ export async function generateImagePrompt(params: {
     }
   } catch (error: any) {
     const duration = Date.now() - startTime
-    
+
     // 记录API调用失败
     logApiCall.error(apiName, {
       message: error.message,
@@ -918,10 +912,10 @@ export async function generateImagePromptFast(params: {
 }): Promise<PromptResult> {
   const apiName = '快速插图提示词生成'
   const startTime = Date.now()
-  
+
   try {
     // 使用精简的提示词，专注于快速生成
-    const characterInfo = params.characters.map(char => 
+    const characterInfo = params.characters.map(char =>
       `${char.name}：${char.analysis.split('，').slice(0, 3).join('，')}`
     ).join('；')
 
@@ -945,8 +939,8 @@ export async function generateImagePromptFast(params: {
     const requestData = {
       model: ARK_IMAGE_ANALYSIS_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800, // 进一步减少token
-      temperature: 0.5 // 稍高温度，提高生成速度
+      max_tokens: 8000, // 进一步减少token
+      temperature: 0.7 // 稍高温度，提高生成速度
     }
 
     logApiCall.start(apiName, {
@@ -986,20 +980,20 @@ export async function generateImagePromptFast(params: {
 // 快速解析响应
 const parseFastResponse = (content: string, expectedPages: number) => {
   const lines = content.split('\n').filter(line => line.trim())
-  
-  const cover = lines.find(line => /^封面[：:]/.test(line))?.replace(/^封面[：:]/, '').trim() || 
-    '温馨的绘本封面，展现主要角色和故事主题'
-  
-  const ending = lines.find(line => /^结尾[：:]/.test(line))?.replace(/^结尾[：:]/, '').trim() || 
+
+  const cover = lines.find(line => /^封面[：:]/.test(line))?.replace(/^封面[：:]/, '').trim() ||
+    '温馨的绘本封面，画面中清晰显示故事标题，展现主要角色和故事主题'
+
+  const ending = lines.find(line => /^结尾[：:]/.test(line))?.replace(/^结尾[：:]/, '').trim() ||
     '温馨的故事结尾，传达圆满和幸福'
-  
+
   const pages: string[] = []
   for (let i = 1; i <= expectedPages; i++) {
     const page = lines.find(line => new RegExp(`^页${i}[：:]`).test(line))?.replace(new RegExp(`^页${i}[：:]`), '').trim() ||
       `第${i}页的温馨插图场景，保持角色一致性`
     pages.push(page)
   }
-  
+
   return { cover, pages, ending, coreElements: null }
 }
 
@@ -1014,7 +1008,7 @@ export async function generateSinglePagePrompt(params: {
 }): Promise<{ success: boolean; data?: { prompt: string }; error?: string }> {
   const apiName = '单页提示词生成'
   const startTime = Date.now()
-  
+
   try {
     const prompt = generateSingleImagePrompt({
       pageType: params.pageType,
@@ -1033,8 +1027,8 @@ export async function generateSinglePagePrompt(params: {
           content: prompt
         }
       ],
-      max_tokens: 800,
-      temperature: 0.2 // 使用很低的温度确保一致性
+      max_tokens: 8000,
+      temperature: 0.7 // 使用很低的温度确保一致性
     }
 
     // 记录API调用开始
@@ -1078,7 +1072,7 @@ export async function generateSinglePagePrompt(params: {
     return result
   } catch (error: any) {
     const duration = Date.now() - startTime
-    
+
     // 记录API调用失败
     logApiCall.error(apiName, {
       message: error.message,
@@ -1103,7 +1097,7 @@ export async function generateImage(params: {
 }): Promise<ImageResult> {
   const apiName = '图片生成'
   const startTime = Date.now()
-  
+
   try {
     // 根据类型设置不同的尺寸
     let width = 1024, height = 1024
@@ -1119,12 +1113,23 @@ export async function generateImage(params: {
     }
 
     // 根据图片类型确定优化策略
-    const imageType = params.prompt.includes('封面') ? 'cover' : 
-                     params.prompt.includes('结尾') ? 'ending' : 'content'
-    
-    const optimizedPrompt = optimizeImagePrompt(params.prompt, imageType)
-    
-    const enhancedPrompt = `${optimizedPrompt}
+    const imageType = params.prompt.includes('封面') ? 'cover' :
+      params.prompt.includes('结尾') ? 'ending' : 'content'
+
+    const optimizedPrompt = optimizeImagePrompt(params.prompt, imageType, params.title)
+
+    // 为封面添加特殊的标题显示要求
+    const titleRequirement = imageType === 'cover' && params.title ? `
+
+【标题文字要求】
+- 标题内容："${params.title}"
+- 文字位置：画面上方或下方显著位置，不遮挡主要角色
+- 字体风格：儿童友好的装饰性字体，圆润可爱
+- 文字颜色：与背景形成良好对比，确保清晰可读
+- 文字大小：占画面宽度的60-80%，足够醒目
+- 装饰效果：可添加阴影、描边或简单装饰，增强视觉效果` : ''
+
+    const enhancedPrompt = `${optimizedPrompt}${titleRequirement}
 
 【专业绘画技法】
 - 艺术风格：儿童绘本插画，手绘水彩质感，温暖治愈系

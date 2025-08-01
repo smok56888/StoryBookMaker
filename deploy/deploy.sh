@@ -10,9 +10,10 @@ echo "🚀 开始部署 StoryBookMaker..."
 # 配置变量
 PROJECT_DIR="/home/ecs-user/code/StoryBookMaker"
 APP_NAME="storybook-maker"
-REPO_URL="https://github.com/smok56888/StoryBookMaker.git"
-# 如果GitHub无法访问，可以使用Gitee镜像
-# REPO_URL="https://gitee.com/你的用户名/StoryBookMaker.git"
+# 优先使用Gitee镜像（阿里云ECS北京机房优化）
+REPO_URL="https://gitee.com/smok56888/StoryBookMaker.git"
+# GitHub备用地址
+GITHUB_REPO_URL="https://github.com/smok56888/StoryBookMaker.git"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -75,21 +76,60 @@ fi
 # 安装依赖
 echo "📦 安装依赖..."
 
-# 创建.npmrc配置文件解决依赖冲突
+# 创建.npmrc配置文件解决依赖冲突和中国网络优化
 if [ ! -f ".npmrc" ]; then
     echo "legacy-peer-deps=true" > .npmrc
     echo "registry=https://registry.npmmirror.com" >> .npmrc
-    print_status "已创建.npmrc配置文件"
+    echo "disturl=https://npmmirror.com/mirrors/node/" >> .npmrc
+    echo "sass_binary_site=https://npmmirror.com/mirrors/node-sass/" >> .npmrc
+    echo "electron_mirror=https://npmmirror.com/mirrors/electron/" >> .npmrc
+    echo "puppeteer_download_host=https://npmmirror.com/mirrors" >> .npmrc
+    echo "chromedriver_cdnurl=https://npmmirror.com/mirrors/chromedriver" >> .npmrc
+    echo "operadriver_cdnurl=https://npmmirror.com/mirrors/operadriver" >> .npmrc
+    echo "phantomjs_cdnurl=https://npmmirror.com/mirrors/phantomjs" >> .npmrc
+    echo "selenium_cdnurl=https://npmmirror.com/mirrors/selenium" >> .npmrc
+    echo "node_inspector_cdnurl=https://npmmirror.com/mirrors/node-inspector" >> .npmrc
+    print_status "已创建.npmrc配置文件（中国网络优化）"
 fi
 
-# 设置Node.js内存限制和Puppeteer配置
+# 设置Node.js内存限制和Puppeteer配置（阿里云ECS优化）
 export NODE_OPTIONS="--max-old-space-size=4096"
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 export PUPPETEER_SKIP_DOWNLOAD=true
+export PUPPETEER_EXECUTABLE_PATH="/usr/bin/google-chrome-stable"
 
 # 添加Puppeteer配置到.npmrc
 if ! grep -q "puppeteer_skip_chromium_download" .npmrc 2>/dev/null; then
     echo "puppeteer_skip_chromium_download=true" >> .npmrc
+    echo "puppeteer_skip_download=true" >> .npmrc
+fi
+
+# 检查并安装Chrome浏览器（阿里云ECS北京机房优化）
+if ! command -v google-chrome-stable &> /dev/null; then
+    print_warning "未检测到Chrome浏览器，正在安装..."
+    
+    # 添加Google Chrome源（使用国内镜像）
+    if [ ! -f "/etc/apt/sources.list.d/google-chrome.list" ]; then
+        # 使用清华大学镜像源
+        echo "deb [arch=amd64] https://mirrors.tuna.tsinghua.edu.cn/google-chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+        
+        # 添加GPG密钥
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - 2>/dev/null || {
+            print_warning "无法添加Google GPG密钥，尝试使用备用方案..."
+            # 备用方案：直接下载Chrome deb包
+            cd /tmp
+            wget -q https://mirrors.tuna.tsinghua.edu.cn/google-chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_current_amd64.deb
+            if [ -f "google-chrome-stable_current_amd64.deb" ]; then
+                dpkg -i google-chrome-stable_current_amd64.deb || apt-get install -f -y
+                print_status "Chrome浏览器安装完成（备用方案）"
+            fi
+        }
+        
+        # 更新包列表并安装
+        apt-get update -qq
+        apt-get install -y google-chrome-stable
+        print_status "Chrome浏览器安装完成"
+    fi
 fi
 
 if command -v pnpm &> /dev/null; then

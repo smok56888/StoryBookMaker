@@ -19,8 +19,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Navigation } from '@/components/ui/navigation'
-import { Trash2, BookOpen, Calendar, Loader2, Download } from 'lucide-react'
-import { getStoryHistory, deleteStory, downloadPdf } from '@/lib/apiClient'
+import { Trash2, BookOpen, Calendar, Loader2 } from 'lucide-react'
+import { getStoryHistory, deleteStory } from '@/lib/apiClient'
+import { DownloadButton } from '@/components/ui/download-button'
 
 // 历史绘本类型定义
 interface StoryItem {
@@ -48,6 +49,7 @@ export default function HistoryPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [storyToDelete, setStoryToDelete] = useState<{ id: string, title: string } | null>(null)
+
   
   // 加载历史绘本数据
   const loadHistory = async (page = 1) => {
@@ -90,6 +92,8 @@ export default function HistoryPage() {
     setStoryToDelete({ id: storyId, title })
     setDeleteDialogOpen(true)
   }
+  
+
   
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -146,16 +150,23 @@ export default function HistoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {group.items.map((story) => (
                     <Card key={story.storyId} className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="relative h-48 bg-gray-100">
+                      <div className="relative overflow-hidden bg-white">
                         {story.coverImage ? (
-                          <Image
-                            src={`data:image/jpeg;base64,${story.coverImage}`}
-                            alt={story.title}
-                            fill
-                            className="object-cover"
-                          />
+                          <div className="w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-1">
+                            <Image
+                              src={`data:image/jpeg;base64,${story.coverImage}`}
+                              alt={story.title}
+                              width={400}
+                              height={300}
+                              className="w-full h-auto object-contain rounded-sm shadow-sm"
+                              style={{ 
+                                maxHeight: '300px',
+                                minHeight: '180px'
+                              }}
+                            />
+                          </div>
                         ) : (
-                          <div className="flex items-center justify-center h-full">
+                          <div className="flex items-center justify-center h-48 bg-gradient-to-br from-gray-50 to-gray-100">
                             <BookOpen className="h-12 w-12 text-gray-300" />
                           </div>
                         )}
@@ -199,22 +210,13 @@ export default function HistoryPage() {
                               查看
                             </Button>
                           </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-sm"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                await downloadPdf(story.storyId, story.title);
-                              } catch (error) {
-                                console.error('PDF下载失败:', error);
-                              }
-                            }}
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            PDF
-                          </Button>
+                          <DownloadButton
+                            storyId={story.storyId}
+                            storyTitle={story.title}
+                            variant="ghost"
+                            size="sm"
+                            showProgress={true}
+                          />
                         </div>
                       </CardFooter>
                     </Card>

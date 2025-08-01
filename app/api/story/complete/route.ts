@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveStoryStatus } from '@/lib/storage'
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

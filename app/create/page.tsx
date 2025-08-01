@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,7 +32,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { generateStory, completeStory, downloadPdf, getStoryDetails } from "@/lib/apiClient"
+import { generateStory, completeStory, getStoryDetails, updateStoryTitle } from "@/lib/apiClient"
+import { DownloadButton } from "@/components/ui/download-button"
 import { toast } from "sonner"
 
 type Character = {
@@ -45,7 +46,8 @@ type Character = {
 
 type StoryStep = "setup" | "story" | "images" | "preview"
 
-export default function CreatePage() {
+// 创建内部组件处理useSearchParams
+function CreatePageContent() {
   const [currentStep, setCurrentStep] = useState<StoryStep>("setup")
   // 默认有一个角色且不可删除
   const [characters, setCharacters] = useState<Character[]>([
@@ -137,6 +139,9 @@ export default function CreatePage() {
           ending: storyData.images.ending
         });
       }
+      
+      // 编辑模式下自动跳转到预览步骤
+      setCurrentStep("preview");
       
       toast.success('故事数据加载成功');
     } catch (error) {
@@ -254,6 +259,21 @@ export default function CreatePage() {
       const newPages = [...prompts.pages]
       newPages[index] = content
       setPrompts(prev => ({ ...prev, pages: newPages }))
+    }
+  }
+
+  // 标题更新函数（带防抖）
+  const handleTitleUpdate = async (newTitle: string) => {
+    setStoryTitle(newTitle)
+    
+    // 如果有故事ID，保存到后端
+    if (storyId && newTitle.trim()) {
+      try {
+        await updateStoryTitle(storyId, newTitle.trim())
+      } catch (error) {
+        console.error('标题更新失败:', error)
+        // 不显示错误提示，避免干扰用户输入
+      }
     }
   }
 
@@ -485,7 +505,21 @@ export default function CreatePage() {
                   <div className="space-y-4">
                     {storyTitle && (
                       <div className="text-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">{storyTitle}</h2>
+                        <div className="space-y-2">
+                          <Label htmlFor="story-title" className="text-sm font-medium text-gray-700">
+                            故事标题
+                          </Label>
+                          <Input
+                            id="story-title"
+                            value={storyTitle}
+                            onChange={(e) => handleTitleUpdate(e.target.value)}
+                            className="text-center text-xl font-bold border-2 border-dashed border-gray-300 focus:border-blue-500 bg-gray-50 focus:bg-white"
+                            placeholder="请输入故事标题"
+                          />
+                          <p className="text-xs text-gray-500">
+                            标题将显示在封面图片上
+                          </p>
+                        </div>
                       </div>
                     )}
                     {generatedStory.map((paragraph, index) => (
@@ -676,23 +710,22 @@ export default function CreatePage() {
                         </>
                       )}
                     </Button>
-                    <Button 
-                      disabled={!storyId || isLoading}
-                      onClick={async () => {
-                        if (!storyId) {
-                          toast.error('请先完成故事创作');
-                          return;
-                        }
-                        try {
-                          await downloadPdf(storyId, storyTitle || '绘本故事');
-                        } catch (error) {
-                          console.error('PDF下载失败:', error);
-                        }
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      导出PDF
-                    </Button>
+                    {storyId ? (
+                      <DownloadButton
+                        storyId={storyId}
+                        storyTitle={storyTitle || '绘本故事'}
+                        variant="default"
+                        size="default"
+                        showProgress={true}
+                        showText={true}
+                        className="px-4 py-2"
+                      />
+                    ) : (
+                      <Button disabled>
+                        <Download className="mr-2 h-4 w-4" />
+                        导出PDF
+                      </Button>
+                    )}
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -715,5 +748,21 @@ export default function CreatePage() {
         )}
       </div>
     </div>
+  )
+}
+
+// 主导出组件，使用Suspense包装
+export default function CreatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    }>
+      <CreatePageContent />
+    </Suspense>
   )
 }

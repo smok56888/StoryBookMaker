@@ -78,26 +78,41 @@ export class PDFGenerator {
   }
 
   async generatePDF(story: Story): Promise<Buffer> {
-    console.log('🚀 开始生成PDF，启动浏览器...')
+    console.log('🚀 [PDFGenerator] 开始生成PDF，启动浏览器...')
+    console.log('📊 [PDFGenerator] 输入数据:', {
+      storyId: story.id,
+      title: story.title,
+      totalPages: story.totalPages,
+      hasCoverImage: !!story.coverImage,
+      hasEndingPage: !!story.endingPage,
+      pagesWithImages: story.pages.filter(p => p.imageUrl).length
+    })
     
     let browser
     try {
+      console.log('🌐 [PDFGenerator] 启动Puppeteer浏览器...')
+      const browserArgs = this.getBrowserArgs()
+      console.log('⚙️ [PDFGenerator] 浏览器参数:', browserArgs.slice(0, 5).join(', ') + '...')
+      
       browser = await puppeteer.launch({
         headless: true,
         timeout: 90000, // 增加浏览器启动超时时间到90秒
-        args: this.getBrowserArgs()
+        args: browserArgs
       })
+      console.log('✅ [PDFGenerator] 浏览器启动成功')
     } catch (error) {
-      console.error('❌ 浏览器启动失败:', error)
+      console.error('❌ [PDFGenerator] 浏览器启动失败:', error)
       throw new Error(`浏览器启动失败: ${error instanceof Error ? error.message : String(error)}`)
     }
     
     try {
+      console.log('📄 [PDFGenerator] 创建新页面...')
       const page = await browser.newPage()
       
       // 设置更长的超时时间
       page.setDefaultTimeout(180000) // 增加到3分钟
       page.setDefaultNavigationTimeout(180000)
+      console.log('⏱️ [PDFGenerator] 页面超时设置: 180秒')
       
       // 设置页面大小为A4
       await page.setViewport({
@@ -105,55 +120,83 @@ export class PDFGenerator {
         height: 1123,
         deviceScaleFactor: 1,
       })
+      console.log('📐 [PDFGenerator] 页面视口设置: 794x1123 (A4)')
 
       // 1. 若有结尾页，插入到pages最后
       let pages = [...story.pages];
       if (story.endingPage && story.endingPage.imageUrl) {
-        console.log('📄 检测到结尾页，添加到PDF中')
+        console.log('📄 [PDFGenerator] 检测到结尾页，添加到PDF中')
         pages.push({
           id: pages.length + 1,
           content: '',
           imageUrl: story.endingPage.imageUrl
         });
       } else {
-        console.log('⚠️ 未检测到结尾页')
+        console.log('⚠️ [PDFGenerator] 未检测到结尾页')
       }
       const storyWithEnding = { ...story, pages, totalPages: pages.length };
+      console.log(`📊 [PDFGenerator] 最终页面数量: ${pages.length} (包含封面和结尾页)`)
 
       // 生成完整的HTML内容
+      console.log('🏗️ [PDFGenerator] 生成HTML内容...')
       const html = this.generateHTML(storyWithEnding)
+      console.log(`📝 [PDFGenerator] HTML内容长度: ${html.length} 字符`)
       
-      console.log('📄 设置HTML内容...')
+      console.log('📄 [PDFGenerator] 设置HTML内容到页面...')
       
       // 设置HTML内容
       await page.setContent(html, {
         waitUntil: ['networkidle2', 'domcontentloaded'], // 改为networkidle2，更宽松的等待条件
         timeout: 180000
-      })     
+      })
+      console.log('✅ [PDFGenerator] HTML内容设置完成')     
  // 等待图片加载完成
-      console.log('📄 等待图片加载...')
+      console.log('🖼️ [PDFGenerator] 等待图片加载...')
       try {
         await page.waitForSelector('img', { timeout: 10000 })
+        console.log('✅ [PDFGenerator] 找到图片元素')
+        
+        // 统计图片数量
+        const imageCount = await page.evaluate(() => {
+          return document.querySelectorAll('img').length
+        })
+        console.log(`📊 [PDFGenerator] 页面中共有 ${imageCount} 个图片元素`)
+        
         // 等待所有图片加载完成
-        await page.evaluate(() => {
+        const loadResults = await page.evaluate(() => {
           const images = Array.from(document.querySelectorAll('img'))
-          return Promise.all(images.map(img => {
-            if (img.complete) return Promise.resolve()
+          return Promise.all(images.map((img, index) => {
+            if (img.complete) {
+              console.log(`图片 ${index + 1} 已加载`)
+              return Promise.resolve({ index, status: 'loaded' })
+            }
             return new Promise((resolve) => {
-              img.addEventListener('load', resolve)
-              img.addEventListener('error', resolve) // 即使图片加载失败也继续
-              setTimeout(resolve, 5000) // 5秒后强制继续
+              img.addEventListener('load', () => {
+                console.log(`图片 ${index + 1} 加载成功`)
+                resolve({ index, status: 'loaded' })
+              })
+              img.addEventListener('error', () => {
+                console.log(`图片 ${index + 1} 加载失败`)
+                resolve({ index, status: 'error' })
+              })
+              setTimeout(() => {
+                console.log(`图片 ${index + 1} 加载超时`)
+                resolve({ index, status: 'timeout' })
+              }, 5000) // 5秒后强制继续
             })
           }))
         })
+        console.log('📊 [PDFGenerator] 图片加载结果:', loadResults)
       } catch (error) {
-        console.log('⚠️  图片加载超时，继续生成PDF...')
+        console.log('⚠️ [PDFGenerator] 图片加载超时，继续生成PDF...')
       }
 
       // 额外等待时间确保渲染完成
+      console.log('⏳ [PDFGenerator] 等待3秒确保渲染完成...')
       await new Promise(resolve => setTimeout(resolve, 3000))
 
-      console.log('📄 生成PDF文件...')
+      console.log('🎯 [PDFGenerator] 开始生成PDF文件...')
+      const pdfStartTime = Date.now()
       
       // 生成PDF - 封面和结尾页无边距，正文页保持小边距
       const pdfBuffer = await page.pdf({
@@ -166,8 +209,12 @@ export class PDFGenerator {
           left: '0px'
         },
         timeout: 120000 // 增加PDF生成超时时间
-      }) 
-     console.log('✅ PDF生成完成')
+      })
+      
+      const pdfDuration = Date.now() - pdfStartTime
+      console.log(`✅ [PDFGenerator] PDF生成完成，耗时: ${pdfDuration}ms`)
+      console.log(`📄 [PDFGenerator] PDF缓冲区大小: ${pdfBuffer.length} bytes`)
+      
       return Buffer.from(pdfBuffer)
     } catch (error) {
       console.error('❌ PDF生成失败:', error)
@@ -263,13 +310,13 @@ export class PDFGenerator {
     .content-page.page-19 { background: linear-gradient(135deg, #fdf4ff 0%, #e879f9 20%, #f3e8ff 100%); }
     .content-page.page-20 { background: linear-gradient(135deg, #fff1f2 0%, #fecaca 50%, #fef3c7 100%); }
      
-   /* 图片容器样式 - 缩减上方空间到1/2 */
+   /* 图片容器样式 - 等间距布局：上边框到图片、图片到文本框、文本框到下边框 */
     .image-container {
       position: absolute;
-      top: 6px; /* 原来13px的1/2约为6px */
+      top: 30px; /* 图片距上边框30px */
       left: 0;
       right: 0;
-      bottom: 180px; /* 为底部文字区域留出足够空间（120px + 15px边距 + 额外空间） */
+      bottom: 240px; /* 为底部文字区域留出足够空间（180px文本框 + 30px间距 + 30px到下边框） */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -281,17 +328,18 @@ export class PDFGenerator {
       width: auto;
       height: auto;
       object-fit: contain;
+      border-radius: 12px; /* 添加圆角效果 */
     }
     
-    /* 文字覆盖层样式 - 白色60%透明度，15px边距 */
+    /* 文字覆盖层样式 - 白色60%透明度，15px边距，增高到180px以容纳4行文字 */
     .text-overlay {
       position: absolute;
-      bottom: 15px;
+      bottom: 30px; /* 文本框距下边框30px */
       left: 15px;
       right: 15px;
       background: rgba(255, 255, 255, 0.6);
-      padding: 15px;
-      min-height: 140px; /* 增加文字区域高度 */
+      padding: 20px; /* 增加内边距 */
+      min-height: 180px; /* 增高到180px以容纳4行文字 */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -299,8 +347,8 @@ export class PDFGenerator {
     }
     
     .text-overlay p {
-      font-size: 24px;
-      line-height: 1.8;
+      font-size: 22px; /* 稍微减小字体以适应更多行 */
+      line-height: 1.6; /* 调整行高以适应4行文字 */
       color: #1f2937;
       font-weight: 600;
       text-align: center;
@@ -311,7 +359,7 @@ export class PDFGenerator {
     /* 页码样式 - 放置在右下角，在文字区域内 */
     .page-number {
       position: absolute;
-      bottom: 25px; /* 在文字区域内部 */
+      bottom: 40px; /* 调整位置以适应新的文本框高度 */
       right: 25px; /* 在文字区域内部 */
       background: rgba(255, 255, 255, 0.9);
       border-radius: 50%;
@@ -410,11 +458,11 @@ export class PDFGenerator {
 
   private generateImageContent(imageUrl: string, pageNumber: number): string {
     if (imageUrl) {
-      // 图片适应容器大小，确保完美居中
-      return `<img src="${imageUrl}" alt="第${pageNumber}页插图" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; margin: auto;" />`
+      // 图片适应容器大小，确保完美居中，添加圆角效果
+      return `<img src="${imageUrl}" alt="第${pageNumber}页插图" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; margin: auto; border-radius: 12px;" />`
     } else {
       return `
-      <div style="width: 100%; height: 100%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+      <div style="width: 100%; height: 100%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; flex-direction: column; border-radius: 12px;">
         <div style="font-size: 64px; margin-bottom: 16px;">📄</div>
         <p style="color: #6b7280; font-size: 16px;">图片加载中...</p>
       </div>

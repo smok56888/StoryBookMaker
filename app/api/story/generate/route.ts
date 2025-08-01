@@ -3,6 +3,10 @@ import { analyzeImage, generateStory } from '@/lib/arkApi'
 import { generateStoryId, saveCharacterAnalysis, saveStory, saveStoryStatus } from '@/lib/storage'
 import { USE_MOCK_DATA, ENABLE_DEBUG_LOGS } from '@/lib/config'
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     console.log('故事生成接口被调用')

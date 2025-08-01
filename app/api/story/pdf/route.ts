@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStory } from '@/lib/storage';
 import { PDFGenerator } from '@/lib/pdfGenerator';
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -28,7 +32,15 @@ export async function GET(request: NextRequest) {
 
     // 生成PDF
     try {
-      console.log('🚀 开始生成PDF，启动浏览器...');
+      console.log('🚀 [PDF生成] 开始生成PDF流程');
+      console.log('📊 [PDF生成] 故事数据统计:', {
+        storyId,
+        title: storyData.title,
+        paragraphsCount: storyData.paragraphs.length,
+        hasCoverImage: !!storyData.images.cover,
+        hasEndingImage: !!storyData.images.ending,
+        contentImagesCount: storyData.images.content.filter(img => img).length
+      });
       
       // 将故事数据转换为适合PDF生成的格式
       const story = {
@@ -49,20 +61,40 @@ export async function GET(request: NextRequest) {
       };
       
       let pdfBuffer;
+      let usedGenerator = '';
       
       try {
-        // 优先使用简单PDF生成方式，更稳定
-        const { generateSimplePDF } = await import('@/lib/simplePdfGenerator');
-        pdfBuffer = await generateSimplePDF(storyId, storyData);
-        console.log('✅ 简单PDF生成成功');
-      } catch (simpleError) {
-        console.error('❌ 简单PDF生成失败，尝试使用Puppeteer方案:', simpleError);
-        
-        // 如果简单方式失败，尝试使用Puppeteer生成PDF
+        console.log('🎯 [PDF生成] 尝试使用主要生成器: PDFGenerator (lib/pdfGenerator.ts)');
         const pdfGenerator = new PDFGenerator();
+        console.log('📝 [PDF生成] PDFGenerator实例创建成功');
+        
+        const startTime = Date.now();
         pdfBuffer = await pdfGenerator.generatePDF(story);
-        console.log('✅ Puppeteer PDF生成成功');
+        const duration = Date.now() - startTime;
+        
+        usedGenerator = 'PDFGenerator (lib/pdfGenerator.ts)';
+        console.log(`✅ [PDF生成] PDFGenerator生成成功，耗时: ${duration}ms`);
+        console.log(`📄 [PDF生成] 生成的PDF大小: ${pdfBuffer.length} bytes`);
+      } catch (puppeteerError) {
+        console.error('❌ [PDF生成] PDFGenerator生成失败:', puppeteerError);
+        console.log('🔄 [PDF生成] 尝试使用备用生成器: simplePdfGenerator');
+        
+        try {
+          const { generateSimplePDF } = await import('@/lib/simplePdfGenerator');
+          const startTime = Date.now();
+          pdfBuffer = await generateSimplePDF(storyId, storyData);
+          const duration = Date.now() - startTime;
+          
+          usedGenerator = 'generateSimplePDF (lib/simplePdfGenerator.ts)';
+          console.log(`✅ [PDF生成] simplePdfGenerator生成成功，耗时: ${duration}ms`);
+          console.log(`📄 [PDF生成] 生成的PDF大小: ${pdfBuffer.length} bytes`);
+        } catch (simpleError) {
+          console.error('❌ [PDF生成] simplePdfGenerator也失败:', simpleError);
+          throw new Error(`所有PDF生成方案都失败: 主要方案(${puppeteerError.message}), 备用方案(${simpleError.message})`);
+        }
       }
+      
+      console.log(`🎉 [PDF生成] 最终使用的生成器: ${usedGenerator}`);
       
       // 不再保存PDF文件到本地，每次都重新生成并直接返回
       console.log('✅ PDF生成完成，准备下载');

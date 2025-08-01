@@ -288,7 +288,7 @@ if [ -f "next.config.mjs" ]; then
     # 确保配置包含必要的修复选项
     if ! grep -q "reactStrictMode.*false" next.config.mjs; then
         print_info "更新Next.js配置..."
-        cp next.config.mjs next.config.mjs.backup
+        cp next.config.mjs next.config.mjs.backup 2>/dev/null || true
         
         cat > next.config.mjs << 'EOF'
 /** @type {import('next').NextConfig} */
@@ -305,7 +305,10 @@ const nextConfig = {
   },
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    dynamicIO: false,
   },
+  // 强制动态渲染，解决静态渲染问题
+  output: 'standalone',
 }
 
 export default nextConfig
@@ -313,6 +316,25 @@ EOF
         print_status "Next.js配置已更新"
     else
         print_status "Next.js配置检查通过"
+    fi
+    
+    # 检查API路由是否有动态配置
+    print_info "检查API路由动态配置..."
+    API_ROUTES_FIXED=0
+    
+    for route_file in app/api/story/*/route.ts; do
+        if [ -f "$route_file" ] && ! grep -q "export const dynamic" "$route_file"; then
+            print_info "修复API路由: $route_file"
+            # 在import语句后添加动态配置
+            sed -i '/^import.*from/a\\n// 强制动态渲染\nexport const dynamic = '\''force-dynamic'\''\nexport const runtime = '\''nodejs'\''' "$route_file" 2>/dev/null || true
+            API_ROUTES_FIXED=$((API_ROUTES_FIXED + 1))
+        fi
+    done
+    
+    if [ $API_ROUTES_FIXED -gt 0 ]; then
+        print_status "已修复 $API_ROUTES_FIXED 个API路由"
+    else
+        print_status "API路由配置检查通过"
     fi
 fi
 

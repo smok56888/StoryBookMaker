@@ -15,16 +15,26 @@ interface StoryData {
 
 export async function generateSimplePDF(storyId: string, storyData: StoryData): Promise<Buffer> {
   try {
-    console.log(`开始为故事 ${storyId} 生成简单PDF`);
+    console.log(`🚀 [SimplePDF] 开始为故事 ${storyId} 生成简单PDF`);
+    console.log('📊 [SimplePDF] 输入数据统计:', {
+      title: storyData.title,
+      paragraphsCount: storyData.paragraphs.length,
+      hasCoverImage: !!storyData.images.cover,
+      hasEndingImage: !!storyData.images.ending,
+      contentImagesCount: storyData.images.content.filter(img => img).length
+    });
     
+    console.log('📄 [SimplePDF] 创建PDF文档...');
     const pdfDoc = await PDFDocument.create();
     
     // 使用默认字体
+    console.log('🔤 [SimplePDF] 嵌入字体...');
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
     // A4页面尺寸
     const pageWidth = 595.28;
     const pageHeight = 841.89;
+    console.log(`📐 [SimplePDF] 页面尺寸: ${pageWidth}x${pageHeight}`);
     
     // 封面页
     const coverPage = pdfDoc.addPage([pageWidth, pageHeight]);
