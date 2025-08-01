@@ -64,13 +64,18 @@ check_network() {
 setup_china_environment() {
     print_info "配置中国大陆网络环境..."
     
-    # 配置npm镜像
+    # 配置npm镜像（只配置有效的选项）
     npm config set registry https://registry.npmmirror.com
-    npm config set disturl https://npmmirror.com/mirrors/node/
-    npm config set sass_binary_site https://npmmirror.com/mirrors/node-sass/
-    npm config set electron_mirror https://npmmirror.com/mirrors/electron/
-    npm config set puppeteer_download_host https://npmmirror.com/mirrors
-    npm config set chromedriver_cdnurl https://npmmirror.com/mirrors/chromedriver
+    npm config set cache ~/.npm
+    npm config set tmp /tmp
+    
+    # 设置环境变量而不是npm config
+    export SASS_BINARY_SITE=https://npmmirror.com/mirrors/node-sass/
+    export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+    export PUPPETEER_DOWNLOAD_HOST=https://npmmirror.com/mirrors
+    export CHROMEDRIVER_CDNURL=https://npmmirror.com/mirrors/chromedriver
+    export OPERADRIVER_CDNURL=https://npmmirror.com/mirrors/operadriver
+    export PHANTOMJS_CDNURL=https://npmmirror.com/mirrors/phantomjs
     
     # 如果安装了pnpm，也配置镜像
     if command -v pnpm &> /dev/null; then
@@ -152,21 +157,12 @@ optimize_dependencies() {
         print_status "依赖配置已优化"
     fi
     
-    # 创建优化的.npmrc文件
+    # 创建优化的.npmrc文件（只包含有效的npm配置）
     cat > .npmrc << EOF
 registry=https://registry.npmmirror.com
-disturl=https://npmmirror.com/mirrors/node/
-sass_binary_site=https://npmmirror.com/mirrors/node-sass/
-electron_mirror=https://npmmirror.com/mirrors/electron/
-puppeteer_download_host=https://npmmirror.com/mirrors
-chromedriver_cdnurl=https://npmmirror.com/mirrors/chromedriver
-operadriver_cdnurl=https://npmmirror.com/mirrors/operadriver
-phantomjs_cdnurl=https://npmmirror.com/mirrors/phantomjs
-selenium_cdnurl=https://npmmirror.com/mirrors/selenium
-node_inspector_cdnurl=https://npmmirror.com/mirrors/node-inspector
-puppeteer_skip_chromium_download=true
-puppeteer_skip_download=true
 legacy-peer-deps=true
+fund=false
+audit=false
 EOF
     
     print_status ".npmrc配置文件已优化"
@@ -238,18 +234,54 @@ main() {
     export PUPPETEER_SKIP_DOWNLOAD=true
     export PUPPETEER_EXECUTABLE_PATH="/usr/bin/google-chrome-stable"
     
+    # 设置中国镜像环境变量
+    export SASS_BINARY_SITE=https://npmmirror.com/mirrors/node-sass/
+    export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+    export PUPPETEER_DOWNLOAD_HOST=https://npmmirror.com/mirrors
+    export CHROMEDRIVER_CDNURL=https://npmmirror.com/mirrors/chromedriver
+    
     # 清理可能的冲突
     rm -rf node_modules package-lock.json 2>/dev/null || true
     
-    # 安装依赖
+    # 安装依赖（禁用错误退出以便处理安装失败）
+    set +e
+    INSTALL_SUCCESS=false
+    
     if command -v pnpm &> /dev/null; then
-        pnpm install
+        print_info "使用pnpm安装依赖..."
+        if pnpm install; then
+            INSTALL_SUCCESS=true
+        fi
     elif command -v yarn &> /dev/null; then
-        yarn install
+        print_info "使用yarn安装依赖..."
+        if yarn install; then
+            INSTALL_SUCCESS=true
+        fi
     else
-        npm install --legacy-peer-deps
+        print_info "使用npm安装依赖..."
+        if npm install --legacy-peer-deps --no-audit --no-fund; then
+            INSTALL_SUCCESS=true
+        fi
     fi
-    print_status "依赖安装完成"
+    
+    # 重新启用错误退出
+    set -e
+    
+    if [ "$INSTALL_SUCCESS" = false ]; then
+        print_error "依赖安装失败，尝试清理缓存后重试..."
+        npm cache clean --force 2>/dev/null || true
+        rm -rf ~/.npm 2>/dev/null || true
+        
+        # 再次尝试安装
+        if npm install --legacy-peer-deps --no-audit --no-fund --verbose; then
+            print_status "依赖安装完成（重试成功）"
+        else
+            print_error "依赖安装失败，请检查网络连接和npm配置"
+            exit 1
+        fi
+    else
+        print_status "依赖安装完成"
+    fi
     
     # 构建项目
     echo "🔨 构建项目..."
