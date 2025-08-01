@@ -20,6 +20,37 @@ interface Story {
 }
 
 export class PDFGenerator {
+  private getChromePath(): string | undefined {
+    const fs = require('fs');
+    
+    // 常见的Chrome安装路径
+    const possiblePaths = [
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/opt/google/chrome/chrome',
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
+    ];
+    
+    for (const path of possiblePaths) {
+      try {
+        if (fs.existsSync(path)) {
+          console.log(`🔍 [PDFGenerator] 找到Chrome路径: ${path}`);
+          return path;
+        }
+      } catch (error) {
+        // 忽略权限错误，继续查找
+        continue;
+      }
+    }
+    
+    console.log('⚠️ [PDFGenerator] 未找到Chrome可执行文件，将使用Puppeteer默认路径');
+    return undefined;
+  }
+
   private getBrowserArgs(): string[] {
     const baseArgs = [
       '--no-sandbox',
@@ -52,7 +83,7 @@ export class PDFGenerator {
       '--disable-ipc-flooding-protection'
     ]
   
-  // 检查是否在Mac Silicon上运行
+    // 检查是否在Mac Silicon上运行
     if (process.platform === 'darwin' && process.arch === 'arm64') {
       console.log('🍎 检测到Mac Silicon，使用优化设置...')
       baseArgs.push(
@@ -74,6 +105,29 @@ export class PDFGenerator {
       )
     }
 
+    // Linux服务器优化
+    if (process.platform === 'linux') {
+      console.log('🐧 检测到Linux环境，添加服务器优化参数...')
+      baseArgs.push(
+        '--disable-background-networking',
+        '--disable-client-side-phishing-detection',
+        '--disable-hang-monitor',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--safebrowsing-disable-auto-update',
+        '--disable-logging',
+        '--disable-permissions-api',
+        '--ignore-certificate-errors',
+        '--ignore-ssl-errors',
+        '--disable-software-rasterizer',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-field-trial-config',
+        '--disable-features=TranslateUI,BlinkGenPropertyTrees'
+      )
+    }
+
     return baseArgs
   }
 
@@ -92,17 +146,40 @@ export class PDFGenerator {
     try {
       console.log('🌐 [PDFGenerator] 启动Puppeteer浏览器...')
       const browserArgs = this.getBrowserArgs()
-      console.log('⚙️ [PDFGenerator] 浏览器参数:', browserArgs.slice(0, 5).join(', ') + '...')
+      const chromePath = this.getChromePath()
       
-      browser = await puppeteer.launch({
+      console.log('⚙️ [PDFGenerator] 浏览器参数:', browserArgs.slice(0, 5).join(', ') + '...')
+      if (chromePath) {
+        console.log('🎯 [PDFGenerator] 使用Chrome路径:', chromePath)
+      }
+      
+      const launchOptions: any = {
         headless: true,
         timeout: 90000, // 增加浏览器启动超时时间到90秒
         args: browserArgs
-      })
+      }
+      
+      // 如果找到了Chrome路径，使用它
+      if (chromePath) {
+        launchOptions.executablePath = chromePath
+      }
+      
+      browser = await puppeteer.launch(launchOptions)
       console.log('✅ [PDFGenerator] 浏览器启动成功')
     } catch (error) {
       console.error('❌ [PDFGenerator] 浏览器启动失败:', error)
-      throw new Error(`浏览器启动失败: ${error instanceof Error ? error.message : String(error)}`)
+      
+      // 提供详细的错误信息和解决方案
+      let errorMessage = `浏览器启动失败: ${error instanceof Error ? error.message : String(error)}`
+      
+      if (error instanceof Error && error.message.includes('Could not find Chrome')) {
+        errorMessage += '\n\n🔧 解决方案:\n'
+        errorMessage += '1. 在服务器上运行: chmod +x deploy/fix-chrome-puppeteer.sh && sudo ./deploy/fix-chrome-puppeteer.sh\n'
+        errorMessage += '2. 或者手动安装Chrome: sudo yum install -y google-chrome-stable\n'
+        errorMessage += '3. 重启应用: ./deploy/restart.sh'
+      }
+      
+      throw new Error(errorMessage)
     }
     
     try {

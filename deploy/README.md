@@ -8,8 +8,8 @@ git clone https://github.com/smok56888/StoryBookMaker.git
 cd StoryBookMaker
 
 # 配置环境变量
-cp .env.example .env.local
-nano .env.local  # 填入你的API密钥
+cp .env.demo .env.local
+nano .env.local  # 填入你的豆包API密钥
 
 # 一键部署
 ./deploy/simple-deploy-no-pm2.sh
@@ -21,8 +21,9 @@ nano .env.local  # 填入你的API密钥
 
 1. **配置环境变量**
 ```bash
-cp .env.example .env.local
-# 编辑 .env.local 文件，配置你的 API 密钥
+cp .env.demo .env.local
+# 编辑 .env.local 文件，配置你的豆包API密钥
+# 详细配置说明请参考：deploy/env-setup-guide.md
 ```
 
 2. **安装依赖**
@@ -71,6 +72,11 @@ npm start
 
 - `simple-deploy-no-pm2.sh` - 一键部署脚本
 - `nginx.conf` - Nginx 反向代理配置
+- `nginx-setup-guide.md` - Nginx配置详细指南
+- `nginx-config-examples.conf` - 各种场景的配置示例
+- `nginx-quick-setup.sh` - Nginx快速配置脚本
+- `env-setup-guide.md` - 环境变量配置详细指南
+- `.env.demo` - 环境变量配置模板
 
 ## 🌐 生产环境配置
 
