@@ -330,29 +330,44 @@ export class PDFGenerator {
     }
         
     body {
-      /* 优化的中文字体栈 - 优先使用系统安装的中文字体 */
+      /* 强化的中文字体栈 - 确保中文字符能正确显示 */
       font-family: 
         'Noto Sans CJK SC', 
-        'Source Han Sans SC', 
-        'WenQuanYi Zen Hei', 
         'WenQuanYi Micro Hei', 
+        'WenQuanYi Zen Hei', 
+        'Source Han Sans SC', 
         'Microsoft YaHei', 
         '微软雅黑', 
         'SimHei', 
         '黑体',
-        'Comic Neue', 
-        'Nunito', 
-        'Comic Sans MS', 
         'Arial Unicode MS',
         'DejaVu Sans',
+        'Liberation Sans',
         sans-serif;
       line-height: 1.6;
       color: #2c3e50;
       background: #fff;
-      /* 优化字体渲染 */
+      /* 强化字体渲染设置 */
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
+      font-variant-ligatures: none;
+      font-feature-settings: "kern" 1;
+    }
+    
+    /* 强制中文字符使用中文字体 */
+    body, p, h1, h2, h3, div, span {
+      font-family: 
+        'Noto Sans CJK SC', 
+        'WenQuanYi Micro Hei', 
+        'WenQuanYi Zen Hei', 
+        'Microsoft YaHei', 
+        '微软雅黑', 
+        'SimHei', 
+        '黑体',
+        'Arial Unicode MS',
+        'DejaVu Sans',
+        sans-serif !important;
     }
     
     .page {
