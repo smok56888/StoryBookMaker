@@ -74,27 +74,63 @@ KILLED_PROCESSES=0
 
 # 查找并终止Next.js相关进程
 for pid in $(pgrep -f "next start" 2>/dev/null); do
-    kill -9 "$pid" 2>/dev/null && KILLED_PROCESSES=$((KILLED_PROCESSES + 1))
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null
+        fi
+        KILLED_PROCESSES=$((KILLED_PROCESSES + 1))
+    fi
 done
 
-# 查找并终止端口3000相关进程
-for pid in $(pgrep -f "node.*3000" 2>/dev/null); do
-    kill -9 "$pid" 2>/dev/null && KILLED_PROCESSES=$((KILLED_PROCESSES + 1))
+# 查找并终止Node.js相关进程（更精确的匹配）
+for pid in $(pgrep -f "node.*start" 2>/dev/null); do
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null
+        fi
+        KILLED_PROCESSES=$((KILLED_PROCESSES + 1))
+    fi
+done
+
+# 查找并终止占用3000端口的进程
+PORT_PIDS=$(netstat -tlnp 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d'/' -f1 | grep -v '-' | sort -u)
+for pid in $PORT_PIDS; do
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        print_info "终止占用端口3000的进程: $pid"
+        kill -TERM "$pid" 2>/dev/null
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null
+        fi
+        KILLED_PROCESSES=$((KILLED_PROCESSES + 1))
+    fi
 done
 
 if [ $KILLED_PROCESSES -gt 0 ]; then
     print_status "清理了 $KILLED_PROCESSES 个残留进程"
 fi
 
-# 检查端口是否已释放
-sleep 2
-if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
-    print_warning "端口3000仍被占用，可能需要手动清理"
-    echo "占用进程："
-    netstat -tlnp 2>/dev/null | grep ":3000 "
-else
-    print_status "端口3000已释放"
-fi
+# 等待端口释放
+print_info "等待端口释放..."
+for i in {1..15}; do
+    if ! netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+        print_status "端口3000已释放"
+        break
+    fi
+    if [ $i -eq 15 ]; then
+        print_warning "端口3000仍被占用，强制清理..."
+        # 最后的强制清理
+        fuser -k 3000/tcp 2>/dev/null || true
+        sleep 2
+    else
+        print_info "等待端口释放... ($i/15)"
+        sleep 1
+    fi
+done
 
 print_status "🎉 应用停止完成！"
 

@@ -50,10 +50,15 @@ fi
 
 # 检查端口占用
 if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
-    print_warning "端口3000已被占用，尝试清理..."
-    pkill -f "next start" 2>/dev/null || true
-    pkill -f "node.*3000" 2>/dev/null || true
-    sleep 2
+    print_error "端口3000仍被占用，请先运行停止脚本"
+    echo "占用进程："
+    netstat -tlnp 2>/dev/null | grep ":3000 "
+    echo ""
+    echo "解决方案："
+    echo "1. 运行停止脚本: ./deploy/stop.sh"
+    echo "2. 手动清理端口: fuser -k 3000/tcp"
+    echo "3. 重新启动: ./deploy/restart.sh"
+    exit 1
 fi
 
 # 启动应用
@@ -67,31 +72,76 @@ print_status "应用已启动 (PID: $APP_PID)"
 
 # 等待启动
 print_info "等待应用启动..."
-sleep 5
 
-# 检查启动状态
-if kill -0 $APP_PID 2>/dev/null; then
-    if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
-        print_status "🎉 应用启动成功！"
-        echo ""
-        echo "🌐 访问信息:"
-        echo "本地访问: http://localhost:3000"
-        
-        # 尝试获取外网IP
-        EXTERNAL_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
-        if [ -n "$EXTERNAL_IP" ]; then
-            echo "外网访问: http://$EXTERNAL_IP:3000"
+# 更智能的启动检查
+MAX_WAIT=30
+WAIT_COUNT=0
+STARTUP_SUCCESS=false
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    
+    # 检查进程是否还在运行
+    if ! kill -0 $APP_PID 2>/dev/null; then
+        print_error "应用进程意外退出"
+        if [ -f "app.log" ]; then
+            echo "错误日志："
+            tail -20 app.log
         fi
+        rm -f app.pid
+        exit 1
+    fi
+    
+    # 检查端口是否开始监听
+    if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+        print_status "端口3000开始监听"
         
-        echo ""
-        echo "📋 管理命令:"
-        echo "查看状态: ./deploy/manage-app.sh status"
-        echo "查看日志: ./deploy/manage-app.sh logs"
-        echo "停止应用: ./deploy/stop.sh"
-        echo "重启应用: ./deploy/restart.sh"
+        # 额外等待2秒确保服务完全就绪
+        sleep 2
         
+        # 尝试HTTP请求测试
+        if curl -s --connect-timeout 5 http://localhost:3000 >/dev/null 2>&1; then
+            STARTUP_SUCCESS=true
+            break
+        else
+            print_info "端口已监听但服务未就绪，继续等待..."
+        fi
+    fi
+    
+    if [ $((WAIT_COUNT % 5)) -eq 0 ]; then
+        print_info "等待应用启动... ($WAIT_COUNT/$MAX_WAIT 秒)"
+    fi
+    
+    sleep 1
+done
+
+# 检查最终启动状态
+if [ "$STARTUP_SUCCESS" = true ]; then
+    print_status "🎉 应用启动成功！"
+    echo ""
+    echo "🌐 访问信息:"
+    echo "本地访问: http://localhost:3000"
+    
+    # 尝试获取外网IP
+    EXTERNAL_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
+    if [ -n "$EXTERNAL_IP" ]; then
+        echo "外网访问: http://$EXTERNAL_IP:3000"
+    fi
+    
+    echo ""
+    echo "📋 管理命令:"
+    echo "查看状态: ./deploy/manage-app.sh status"
+    echo "查看日志: ./deploy/manage-app.sh logs"
+    echo "停止应用: ./deploy/stop.sh"
+    echo "重启应用: ./deploy/restart.sh"
+    
+elif kill -0 $APP_PID 2>/dev/null; then
+    if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+        print_warning "应用已启动但HTTP服务可能未就绪"
+        print_info "请稍后访问或查看日志"
     else
-        print_warning "应用进程存在但端口未监听，检查日志..."
+        print_warning "应用进程存在但端口未监听"
+        print_info "查看最近的日志："
         tail -10 app.log
         exit 1
     fi
@@ -101,5 +151,6 @@ else
         echo "错误日志："
         tail -20 app.log
     fi
+    rm -f app.pid
     exit 1
 fi

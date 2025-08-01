@@ -37,11 +37,47 @@ print_info "第一步：停止应用..."
 if ./deploy/stop.sh; then
     print_status "应用已停止"
 else
-    print_warning "停止过程中出现警告，继续重启..."
+    print_warning "停止过程中出现警告，尝试强制停止..."
+    if [ -f "./deploy/force-stop.sh" ]; then
+        ./deploy/force-stop.sh
+    else
+        print_warning "强制停止脚本不存在，手动清理..."
+        pkill -9 -f "next" 2>/dev/null || true
+        pkill -9 -f "node.*start" 2>/dev/null || true
+        fuser -k 3000/tcp 2>/dev/null || true
+    fi
 fi
 
 # 等待一下确保完全停止
-sleep 3
+print_info "等待进程完全停止..."
+sleep 5
+
+# 最终检查端口是否释放
+MAX_RETRIES=10
+RETRY_COUNT=0
+while netstat -tlnp 2>/dev/null | grep -q ":3000 " && [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    print_warning "端口仍被占用，等待释放... ($RETRY_COUNT/$MAX_RETRIES)"
+    
+    if [ $RETRY_COUNT -eq 5 ]; then
+        print_info "尝试强制清理端口..."
+        fuser -k 3000/tcp 2>/dev/null || true
+    fi
+    
+    sleep 2
+done
+
+if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+    print_error "无法释放端口3000，重启失败"
+    echo "占用进程："
+    netstat -tlnp 2>/dev/null | grep ":3000 "
+    echo ""
+    echo "🔧 解决方案："
+    echo "1. 运行强制停止: ./deploy/force-stop.sh"
+    echo "2. 重启服务器: sudo reboot"
+    echo "3. 手动清理: fuser -k 3000/tcp"
+    exit 1
+fi
 
 # 执行启动脚本
 print_info "第二步：启动应用..."
